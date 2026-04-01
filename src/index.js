@@ -1,37 +1,33 @@
-require('dotenv').config();
-const express = require('express');
-const pool = require('./config/database');
-const authRoutes = require('./routes/auth');
+// JWT middleware
+const jwt = require('jsonwebtoken');
 
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Middleware
-app.use(express.json());
-
-// Test database connection
-pool.query('SELECT NOW()', (err, res) => {
-    if (err) {
-        console.error('Database connection failed:', err);
-    } else {
-        console.log('✅ Connected to PostgreSQL Database successfully!');
+// Middleware for JWT verification
+function verifyToken(req, res, next) {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(403).send('A token is required for authentication');
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+    } catch (err) {
+        return res.status(401).send('Invalid Token');
     }
+    return next();
+}
+
+// Protected route for user profile
+app.get('/api/user/profile', verifyToken, (req, res) => {
+    // Logic to retrieve user profile
+    res.send(req.user);
 });
 
-// Routes
-app.get('/', (req, res) => {
-    res.json({ message: 'Welcome to Classly Backend API' });
+// Protected route for updating user profile
+app.put('/api/user/profile', verifyToken, (req, res) => {
+    // Logic to update user profile
+    res.send('User profile updated');
 });
 
-// Auth Routes
-app.use('/api/auth', authRoutes);
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Internal Server Error', error: err.message });
-});
-
-app.listen(PORT, () => {
-    console.log(`✅ Server is running on port ${PORT}`);
+// Protected route for deleting account
+app.delete('/api/user/account', verifyToken, (req, res) => {
+    // Logic to delete user account
+    res.send('User account deleted');
 });
