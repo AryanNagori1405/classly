@@ -4,16 +4,23 @@ const pool = require('../config/database');
 
 // Register User Function
 exports.register = async (req, res) => {
-    const { username, password } = req.body;
-    
+    const { email, password, name } = req.body;
+
     // Validate input
-    if (!username || !password) {
+    if (!email || !password || !name) {
         return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    // Validate email format
+    const atIndex = email.indexOf('@');
+    const lastDotIndex = email.lastIndexOf('.');
+    if (atIndex <= 0 || lastDotIndex <= atIndex + 1 || lastDotIndex >= email.length - 1) {
+        return res.status(400).json({ message: 'Invalid email format' });
     }
 
     try {
         // Check if user already exists
-        const existingUser = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ message: 'User already exists' });
         }
@@ -23,8 +30,8 @@ exports.register = async (req, res) => {
 
         // Create user in database
         const result = await pool.query(
-            'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id, username',
-            [username, hashedPassword]
+            'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
+            [email, hashedPassword, name]
         );
 
         const user = result.rows[0];
@@ -37,16 +44,16 @@ exports.register = async (req, res) => {
 
 // Login User Function
 exports.login = async (req, res) => {
-    const { username, password } = req.body;
-    
+    const { email, password } = req.body;
+
     // Validate input
-    if (!username || !password) {
+    if (!email || !password) {
         return res.status(400).json({ message: 'All fields are required' });
     }
 
     try {
         // Find user
-        const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         if (userResult.rows.length === 0) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -60,7 +67,7 @@ exports.login = async (req, res) => {
         }
 
         // Generate token
-        const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         return res.status(200).json({ message: 'Login successful', token });
     } catch (error) {
