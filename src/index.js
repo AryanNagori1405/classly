@@ -16,6 +16,9 @@ const timestampsRoutes = require('./routes/timestamps');
 const notesRoutes = require('./routes/notes');
 const feedbackRoutes = require('./routes/feedback');
 const { startCleanupSchedule } = require('./jobs/videoCleanupJob');
+const analyticsRoutes = require('./routes/analytics');
+const adminRoutes = require('./routes/admin');
+const notificationsRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -132,6 +135,15 @@ app.use('/api/notes', notesRoutes);
 
 // Feedback Routes
 app.use('/api/feedback', feedbackRoutes);
+
+// Analytics Routes
+app.use('/api/analytics', analyticsRoutes);
+
+// Admin Routes
+app.use('/api/admin', adminRoutes);
+
+// Notifications Routes
+app.use('/api/notifications', notificationsRoutes);
 
 // ===== PROTECTED ROUTES =====
 
