@@ -4,7 +4,10 @@ const pool = require('./config/database');
 const authRoutes = require('./routes/auth');
 const courseRoutes = require('./routes/courses');
 const enrollmentRoutes = require('./routes/enrollments');
-const lessonRoutes = require('./routes/lessons');  // ✅ ADD THIS LINE
+const lessonRoutes = require('./routes/lessons');
+const quizRoutes = require('./routes/quizzes');
+const questionRoutes = require('./routes/questions');
+const submissionRoutes = require('./routes/submissions');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
@@ -94,8 +97,17 @@ app.use('/api/courses', courseRoutes);
 // Enrollment Routes
 app.use('/api/enrollments', enrollmentRoutes);
 
-// Lessons Routes ✅ ADD THIS LINE
+// Lessons Routes
 app.use('/api/lessons', lessonRoutes);
+
+// Quizzes Routes
+app.use('/api/quizzes', quizRoutes);
+
+// Questions Routes
+app.use('/api/questions', questionRoutes);
+
+// Submissions Routes
+app.use('/api/submissions', submissionRoutes);
 
 // ===== PROTECTED ROUTES =====
 
