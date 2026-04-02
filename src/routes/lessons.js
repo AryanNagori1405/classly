@@ -1,57 +1,227 @@
-// lessons.js
-
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const pool = require('../config/database');
 const router = express.Router();
 
-// Mock Database
-let lessons = [];
-
-// Middleware to verify JWT
+// Middleware to verify JWT token
 function authenticateToken(req, res, next) {
     const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
-    if (!token) return res.sendStatus(401);
+    
+    if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+    }
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
+    // Use JWT_SECRET (defined in .env) to verify token
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Invalid or expired token' });
+        }
         req.user = user;
         next();
     });
 }
 
-// Create a new lesson
-router.post('/', authenticateToken, (req, res) => {
-    const lesson = { id: lessons.length + 1, ...req.body };
-    lessons.push(lesson);
-    res.status(201).json(lesson);
+// Helper: Check if teacher owns the course
+async function validateCourseOwnership(courseId, userId) {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM courses WHERE id = $1 AND created_by = $2',
+            [courseId, userId]
+        );
+        return result.rows.length > 0;
+    } catch (error) {
+        console.error('Error validating course ownership:', error);
+        throw error;
+    }
+}
+
+// Helper: Check if student is enrolled in course
+async function validateEnrollment(courseId, userId) {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM enrollments WHERE course_id = $1 AND user_id = $2',
+            [courseId, userId]
+        );
+        return result.rows.length > 0;
+    } catch (error) {
+        console.error('Error validating enrollment:', error);
+        throw error;
+    }
+}
+
+// POST /api/lessons - Create a new lesson
+router.post('/', authenticateToken, async (req, res) => {
+    try {
+        const { courseId, title, description, content, video_url, duration } = req.body;
+        const userId = req.user.id;
+
+        // Validate required fields
+        if (!courseId || !title) {
+            return res.status(400).json({ message: 'courseId and title are required' });
+        }
+
+        // Check course exists
+        const courseResult = await pool.query('SELECT * FROM courses WHERE id = $1', [courseId]);
+        if (courseResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Verify user owns this course
+        const isOwner = await validateCourseOwnership(courseId, userId);
+        if (!isOwner) {
+            return res.status(403).json({ message: 'You can only create lessons in your own courses' });
+        }
+
+        // Insert lesson into database
+        const result = await pool.query(
+            `INSERT INTO lessons (course_id, title, description, content, video_url, duration, is_published)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING *`,
+            [courseId, title, description || null, content || null, video_url || null, duration || null, false]
+        );
+
+        res.status(201).json({
+            message: 'Lesson created successfully',
+            lesson: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error creating lesson:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 });
 
-// Get all lessons
-router.get('/', authenticateToken, (req, res) => {
-    res.json(lessons);
+// GET /api/lessons/:id - Get specific lesson
+router.get('/:id', authenticateToken, async (req, res) => {
+    try {
+        const lessonId = req.params.id;
+        const userId = req.user.id;
+
+        const lessonResult = await pool.query('SELECT * FROM lessons WHERE id = $1', [lessonId]);
+        if (lessonResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Lesson not found' });
+        }
+
+        const lesson = lessonResult.rows[0];
+
+        // Check if user has access (enrolled or is owner)
+        const isEnrolled = await validateEnrollment(lesson.course_id, userId);
+        const isOwner = await validateCourseOwnership(lesson.course_id, userId);
+
+        if (!isEnrolled && !isOwner) {
+            return res.status(403).json({ message: 'You do not have access to this lesson' });
+        }
+
+        res.json(lesson);
+    } catch (error) {
+        console.error('Error fetching lesson:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 });
 
-// Get a lesson by ID
-router.get('/:id', authenticateToken, (req, res) => {
-    const lesson = lessons.find(l => l.id === parseInt(req.params.id));
-    if (!lesson) return res.sendStatus(404);
-    res.json(lesson);
+// GET /api/lessons/course/:courseId - Get all lessons in a course
+router.get('/course/:courseId', authenticateToken, async (req, res) => {
+    try {
+        const courseId = req.params.courseId;
+        const userId = req.user.id;
+
+        // Check if course exists
+        const courseResult = await pool.query('SELECT * FROM courses WHERE id = $1', [courseId]);
+        if (courseResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Check if user has access
+        const isEnrolled = await validateEnrollment(courseId, userId);
+        const isOwner = await validateCourseOwnership(courseId, userId);
+
+        if (!isEnrolled && !isOwner) {
+            return res.status(403).json({ message: 'You do not have access to this course' });
+        }
+
+        const result = await pool.query(
+            'SELECT * FROM lessons WHERE course_id = $1 ORDER BY order_index ASC',
+            [courseId]
+        );
+
+        res.json({
+            message: 'Lessons retrieved successfully',
+            lessons: result.rows
+        });
+    } catch (error) {
+        console.error('Error fetching lessons:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 });
 
-// Update a lesson by ID
-router.put('/:id', authenticateToken, (req, res) => {
-    const lessonIndex = lessons.findIndex(l => l.id === parseInt(req.params.id));
-    if (lessonIndex === -1) return res.sendStatus(404);
-    lessons[lessonIndex] = { id: lessons[lessonIndex].id, ...req.body };
-    res.json(lessons[lessonIndex]);
+// PUT /api/lessons/:id - Update a lesson
+router.put('/:id', authenticateToken, async (req, res) => {
+    try {
+        const lessonId = req.params.id;
+        const userId = req.user.id;
+        const { title, description, content, video_url, duration } = req.body;
+
+        const lessonResult = await pool.query('SELECT * FROM lessons WHERE id = $1', [lessonId]);
+        if (lessonResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Lesson not found' });
+        }
+
+        const lesson = lessonResult.rows[0];
+
+        // Verify user owns the course
+        const isOwner = await validateCourseOwnership(lesson.course_id, userId);
+        if (!isOwner) {
+            return res.status(403).json({ message: 'You can only update lessons in your own courses' });
+        }
+
+        const result = await pool.query(
+            `UPDATE lessons 
+             SET title = COALESCE($1, title),
+                 description = COALESCE($2, description),
+                 content = COALESCE($3, content),
+                 video_url = COALESCE($4, video_url),
+                 duration = COALESCE($5, duration),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $6
+             RETURNING *`,
+            [title, description, content, video_url, duration, lessonId]
+        );
+
+        res.json({
+            message: 'Lesson updated successfully',
+            lesson: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error updating lesson:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 });
 
-// Delete a lesson by ID
-router.delete('/:id', authenticateToken, (req, res) => {
-    const lessonIndex = lessons.findIndex(l => l.id === parseInt(req.params.id));
-    if (lessonIndex === -1) return res.sendStatus(404);
-    lessons.splice(lessonIndex, 1);
-    res.sendStatus(204);
+// DELETE /api/lessons/:id - Delete a lesson
+router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+        const lessonId = req.params.id;
+        const userId = req.user.id;
+
+        const lessonResult = await pool.query('SELECT * FROM lessons WHERE id = $1', [lessonId]);
+        if (lessonResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Lesson not found' });
+        }
+
+        const lesson = lessonResult.rows[0];
+
+        // Verify user owns the course
+        const isOwner = await validateCourseOwnership(lesson.course_id, userId);
+        if (!isOwner) {
+            return res.status(403).json({ message: 'You can only delete lessons from your own courses' });
+        }
+
+        await pool.query('DELETE FROM lessons WHERE id = $1', [lessonId]);
+
+        res.json({ message: 'Lesson deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting lesson:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 });
 
 module.exports = router;
