@@ -1,29 +1,41 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const Enrollment = require('../models/enrollmentModel');
-const db = require('../config/database');
+
+// Middleware for JWT authentication
+const authenticateJWT = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(403).json({ message: 'No token provided' });
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ message: 'Invalid or expired token' });
+        req.user = user;
+        next();
+    });
+};
 
 // ===== ENROLL A STUDENT IN A COURSE =====
-router.post('/enroll', async (req, res) => {
+router.post('/enroll', authenticateJWT, async (req, res) => {
     try {
-        const { studentId, courseId } = req.body;
+        const { courseId } = req.body;
+        const studentId = req.user.id; // Get from JWT token
 
-        // Validation
-        if (!studentId || !courseId) {
-            return res.status(400).json({ message: 'studentId and courseId are required' });
+        if (!courseId) {
+            return res.status(400).json({ message: 'courseId is required' });
         }
 
         // Check if student already enrolled
         const isAlreadyEnrolled = await Enrollment.isEnrolled(studentId, courseId);
         if (isAlreadyEnrolled) {
-            return res.status(400).json({ message: 'Student already enrolled in this course' });
+            return res.status(400).json({ message: 'You are already enrolled in this course' });
         }
 
         // Enroll student
         const result = await Enrollment.enrollStudent(studentId, courseId);
         
         res.status(201).json({
-            message: 'Student enrolled successfully',
+            message: 'Enrolled successfully',
             enrollment: result.rows[0]
         });
     } catch (error) {
@@ -32,19 +44,15 @@ router.post('/enroll', async (req, res) => {
     }
 });
 
-// ===== GET ALL COURSES FOR A STUDENT =====
-router.get('/my-courses/:studentId', async (req, res) => {
+// ===== GET MY COURSES (logged-in student) =====
+router.get('/my-courses', authenticateJWT, async (req, res) => {
     try {
-        const { studentId } = req.params;
-
-        if (!studentId) {
-            return res.status(400).json({ message: 'studentId is required' });
-        }
+        const studentId = req.user.id;
 
         const result = await Enrollment.getStudentEnrollments(studentId);
 
         res.status(200).json({
-            message: 'Student courses retrieved successfully',
+            message: 'Your courses retrieved successfully',
             courses: result.rows
         });
     } catch (error) {
@@ -74,27 +82,27 @@ router.get('/course/:courseId', async (req, res) => {
     }
 });
 
-// ===== UNENROLL STUDENT FROM COURSE =====
-router.delete('/unenroll', async (req, res) => {
+// ===== UNENROLL FROM COURSE =====
+router.delete('/unenroll/:courseId', authenticateJWT, async (req, res) => {
     try {
-        const { studentId, courseId } = req.body;
+        const { courseId } = req.params;
+        const studentId = req.user.id;
 
-        if (!studentId || !courseId) {
-            return res.status(400).json({ message: 'studentId and courseId are required' });
+        if (!courseId) {
+            return res.status(400).json({ message: 'courseId is required' });
         }
 
         // Check if student is enrolled
         const isEnrolled = await Enrollment.isEnrolled(studentId, courseId);
         if (!isEnrolled) {
-            return res.status(400).json({ message: 'Student is not enrolled in this course' });
+            return res.status(400).json({ message: 'You are not enrolled in this course' });
         }
 
         // Unenroll student
         const result = await Enrollment.unenrollStudent(studentId, courseId);
 
         res.status(200).json({
-            message: 'Student unenrolled successfully',
-            enrollment: result.rows[0]
+            message: 'Unenrolled successfully'
         });
     } catch (error) {
         console.error('Error unenrolling student:', error);
@@ -102,13 +110,14 @@ router.delete('/unenroll', async (req, res) => {
     }
 });
 
-// ===== CHECK IF STUDENT IS ENROLLED =====
-router.get('/check/:studentId/:courseId', async (req, res) => {
+// ===== CHECK IF I'M ENROLLED IN A COURSE =====
+router.get('/check/:courseId', authenticateJWT, async (req, res) => {
     try {
-        const { studentId, courseId } = req.params;
+        const { courseId } = req.params;
+        const studentId = req.user.id;
 
-        if (!studentId || !courseId) {
-            return res.status(400).json({ message: 'studentId and courseId are required' });
+        if (!courseId) {
+            return res.status(400).json({ message: 'courseId is required' });
         }
 
         const isEnrolled = await Enrollment.isEnrolled(studentId, courseId);

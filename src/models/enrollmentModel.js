@@ -1,66 +1,57 @@
 const pool = require('../config/database');
 
 class Enrollment {
-    // ===== ENROLL STUDENT =====
     static async enrollStudent(studentId, courseId) {
         const query = `
-            INSERT INTO enrollments (student_id, course_id, enrolled_at)
+            INSERT INTO enrollments (student_id, course_id, created_at)
             VALUES ($1, $2, NOW())
-            RETURNING id, student_id, course_id, enrolled_at
+            RETURNING id, student_id, course_id, created_at
         `;
         return await pool.query(query, [studentId, courseId]);
     }
 
-    // ===== GET STUDENT ENROLLMENTS (All courses for a student) =====
     static async getStudentEnrollments(studentId) {
         const query = `
             SELECT 
                 e.id,
                 e.student_id,
                 c.id as course_id,
-                c.course_name,
+                c.title as course_name,
                 c.description,
-                c.instructor_id,
-                e.enrolled_at
+                e.created_at as enrolled_at
             FROM enrollments e
             JOIN courses c ON e.course_id = c.id
             WHERE e.student_id = $1
-            ORDER BY e.enrolled_at DESC
+            ORDER BY e.created_at DESC
         `;
         return await pool.query(query, [studentId]);
     }
 
-    // ===== GET COURSE ENROLLMENTS (All students in a course) =====
     static async getCourseEnrollments(courseId) {
         const query = `
             SELECT 
                 e.id,
                 e.student_id,
-                u.username,
-                u.email,
                 c.id as course_id,
-                c.course_name,
-                e.enrolled_at
+                c.title as course_name,
+                e.created_at as enrolled_at
             FROM enrollments e
-            JOIN users u ON e.student_id = u.id
             JOIN courses c ON e.course_id = c.id
             WHERE e.course_id = $1
-            ORDER BY e.enrolled_at DESC
+            ORDER BY e.created_at DESC
         `;
         return await pool.query(query, [courseId]);
     }
 
-    // ===== UNENROLL STUDENT =====
     static async unenrollStudent(studentId, courseId) {
         const query = `
             DELETE FROM enrollments
             WHERE student_id = $1 AND course_id = $2
-            RETURNING id, student_id, course_id
+            RETURNING id
         `;
         return await pool.query(query, [studentId, courseId]);
     }
 
-    // ===== CHECK IF STUDENT IS ENROLLED =====
     static async isEnrolled(studentId, courseId) {
         const query = `
             SELECT id FROM enrollments
@@ -71,18 +62,17 @@ class Enrollment {
         return result.rows.length > 0;
     }
 
-    // ===== GET ENROLLMENT STATISTICS =====
     static async getEnrollmentStats(courseId) {
         const query = `
             SELECT 
                 c.id as course_id,
-                c.course_name,
+                c.title as course_name,
                 COUNT(e.id) as total_students,
-                MAX(e.enrolled_at) as latest_enrollment
+                MAX(e.created_at) as latest_enrollment
             FROM courses c
             LEFT JOIN enrollments e ON c.id = e.course_id
             WHERE c.id = $1
-            GROUP BY c.id, c.course_name
+            GROUP BY c.id, c.title
         `;
         return await pool.query(query, [courseId]);
     }
