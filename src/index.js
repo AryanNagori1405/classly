@@ -14,6 +14,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const timestampsRoutes = require('./routes/timestamps');
 const notesRoutes = require('./routes/notes');
+const feedbackRoutes = require('./routes/feedback');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -124,6 +125,9 @@ app.use('/api/timestamps', timestampsRoutes);
 
 // Notes Routes
 app.use('/api/notes', notesRoutes);
+
+// Feedback Routes
+app.use('/api/feedback', feedbackRoutes);
 
 // ===== PROTECTED ROUTES =====
 
