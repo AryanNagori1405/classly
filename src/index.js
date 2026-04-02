@@ -15,6 +15,7 @@ const nodemailer = require('nodemailer');
 const timestampsRoutes = require('./routes/timestamps');
 const notesRoutes = require('./routes/notes');
 const feedbackRoutes = require('./routes/feedback');
+const { startCleanupSchedule } = require('./jobs/videoCleanupJob');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,6 +31,9 @@ pool.query('SELECT NOW()', (err, res) => {
         console.log('✅ Connected to PostgreSQL Database successfully!');
     }
 });
+
+// Start video cleanup scheduled job
+startCleanupSchedule();
 
 // ===== JWT VERIFICATION MIDDLEWARE =====
 const verifyToken = (req, res, next) => {
