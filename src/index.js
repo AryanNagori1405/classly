@@ -13,6 +13,7 @@ const communitiesRoutes = require('./routes/communities');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const timestampsRoutes = require('./routes/timestamps');
+const notesRoutes = require('./routes/notes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -120,6 +121,9 @@ app.use('/api/communities', communitiesRoutes);
 
 // Timestamp Routes (Doubts System)
 app.use('/api/timestamps', timestampsRoutes);
+
+// Notes Routes
+app.use('/api/notes', notesRoutes);
 
 // ===== PROTECTED ROUTES =====
 
