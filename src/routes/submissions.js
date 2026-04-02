@@ -39,11 +39,15 @@ async function validateEnrollment(courseId, userId) {
 // Helper: Check if teacher owns the course
 async function validateCourseOwnership(courseId, userId) {
     try {
+        console.log('Checking course ownership - Course ID:', courseId, 'User ID:', userId);
         const result = await pool.query(
             'SELECT * FROM courses WHERE id = $1 AND created_by = $2',
             [courseId, userId]
         );
-        return result.rows.length > 0;
+        console.log('Course ownership query result:', result.rows);
+        const isOwner = result.rows.length > 0;
+        console.log('Is owner:', isOwner);
+        return isOwner;
     } catch (error) {
         console.error('Error validating course ownership:', error);
         throw error;
