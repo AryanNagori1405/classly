@@ -27,9 +27,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     super.initState();
     _screens = [
       const StudentDashboardTab(),
-      VideoListScreen(),
-      CommunityListScreen(),
-      DoubtsListScreen(),
+      const VideoListScreen(),
+      const CommunityListScreen(),
+      const DoubtsListScreen(),
       const ProfileScreen(),
     ];
   }

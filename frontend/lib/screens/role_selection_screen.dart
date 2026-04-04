@@ -1,3 +1,4 @@
+import 'package:classly_frontend/utils/app_flow.dart';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../config/constants.dart';
@@ -121,8 +122,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                           boxShadow: _selectedRole != null
                               ? [
                                   BoxShadow(
-                                    color: AppColors.primaryColor
-                                        .withOpacity(0.3),
+                                    color:
+                                        AppColors.primaryColor.withOpacity(0.3),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -133,12 +134,16 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: _selectedRole != null
-                                ? () => Navigator.of(context).push(
+                                ? () {
+                                    AppFlow.setUserRole(_selectedRole!);
+                                    Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (context) =>
-                                            LoginScreen(selectedRole: _selectedRole!),
+                                        builder: (context) => LoginScreen(
+                                          selectedRole: _selectedRole!,
+                                        ),
                                       ),
-                                    )
+                                    );
+                                  }
                                 : null,
                             borderRadius: BorderRadius.circular(15),
                             child: Center(
@@ -146,7 +151,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                                 _selectedRole == null
                                     ? 'Select a Role to Continue'
                                     : 'Continue',
-                                style: AppTextStyles.bodyLarge.copyWith(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                   color: _selectedRole != null

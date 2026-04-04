@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../config/constants.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/app_flow.dart';
 import '../home/student_home.dart';
 import '../home/teacher_home.dart';
+import '../welcome_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -29,7 +31,7 @@ class _SignupScreenState extends State<SignupScreen>
   final _semesterController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _showPassword = false;
   bool _showConfirmPassword = false;
   bool _agreeToTerms = false;
@@ -129,11 +131,18 @@ class _SignupScreenState extends State<SignupScreen>
 
       if (mounted) {
         if (success) {
+          AppFlow.setFirstTimeUser(true);
+          AppFlow.setLoggedIn(true);
+          AppFlow.setUserRole(widget.selectedRole);
+
+          // Navigate to Welcome Screen for first-time users
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => widget.selectedRole == 'student'
-                  ? const StudentHomeScreen()
-                  : const TeacherHomeScreen(),
+              builder: (context) => WelcomeScreen(
+                userName: _nameController.text.trim(),
+                userRole: widget.selectedRole,
+                uid: _uidController.text.trim(),
+              ),
             ),
             (route) => false,
           );
@@ -413,7 +422,8 @@ class _SignupScreenState extends State<SignupScreen>
                           );
                         },
                         child: Container(
-                          padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                          padding:
+                              const EdgeInsets.all(AppConstants.paddingMedium),
                           decoration: BoxDecoration(
                             color: AppColors.primaryColor.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(12),
@@ -427,7 +437,8 @@ class _SignupScreenState extends State<SignupScreen>
                               Checkbox(
                                 value: _agreeToTerms,
                                 onChanged: (value) {
-                                  setState(() => _agreeToTerms = value ?? false);
+                                  setState(
+                                      () => _agreeToTerms = value ?? false);
                                 },
                                 activeColor: AppColors.primaryColor,
                                 checkColor: Colors.white,
@@ -586,9 +597,7 @@ class _SignupScreenState extends State<SignupScreen>
                       onShowPasswordChanged?.call(!showPassword);
                     },
                     child: Icon(
-                      showPassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
+                      showPassword ? Icons.visibility : Icons.visibility_off,
                       color: AppColors.primaryColor.withOpacity(0.6),
                     ),
                   )
@@ -719,9 +728,8 @@ class _SignupScreenState extends State<SignupScreen>
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: isPrimary
-                            ? Colors.white
-                            : AppColors.primaryColor,
+                        color:
+                            isPrimary ? Colors.white : AppColors.primaryColor,
                         letterSpacing: 1,
                       ),
                     ),

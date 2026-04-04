@@ -6,6 +6,10 @@ import '../../providers/auth_provider.dart';
 import '../home/student_home.dart';
 import '../home/teacher_home.dart';
 import 'signup_screen.dart';
+import '../welcome_screen.dart';
+import '../home/student_home.dart';
+import '../home/teacher_home.dart';
+import '../role_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String selectedRole;
@@ -89,10 +93,10 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (mounted) {
         if (success) {
-          // Navigate based on role
+          // Navigate to home screen based on role
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => widget.selectedRole == 'student'
+              builder: (context) => authProvider.user?.role == 'student'
                   ? const StudentHomeScreen()
                   : const TeacherHomeScreen(),
             ),
@@ -303,7 +307,8 @@ class _LoginScreenState extends State<LoginScreen>
                           );
                         },
                         child: Container(
-                          padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                          padding:
+                              const EdgeInsets.all(AppConstants.paddingMedium),
                           decoration: BoxDecoration(
                             color: AppColors.primaryColor.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(12),
@@ -403,9 +408,7 @@ class _LoginScreenState extends State<LoginScreen>
                       onShowPasswordChanged?.call(!showPassword);
                     },
                     child: Icon(
-                      showPassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
+                      showPassword ? Icons.visibility : Icons.visibility_off,
                       color: AppColors.primaryColor.withOpacity(0.6),
                     ),
                   )
@@ -536,9 +539,8 @@ class _LoginScreenState extends State<LoginScreen>
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: isPrimary
-                            ? Colors.white
-                            : AppColors.primaryColor,
+                        color:
+                            isPrimary ? Colors.white : AppColors.primaryColor,
                         letterSpacing: 1,
                       ),
                     ),

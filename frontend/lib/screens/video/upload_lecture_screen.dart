@@ -5,7 +5,7 @@ import '../../widgets/animations/fade_animation.dart';
 import '../../widgets/animations/slide_animation.dart';
 
 class UploadLectureScreen extends StatefulWidget {
-  UploadLectureScreen({Key? key}) : super(key: key);
+  const UploadLectureScreen({Key? key}) : super(key: key);
 
   @override
   State<UploadLectureScreen> createState() => _UploadLectureScreenState();

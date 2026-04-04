@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../config/constants.dart';
-import '../widgets/animations/scale_animation.dart';
-import '../widgets/animations/fade_animation.dart';
+import '../providers/auth_provider.dart';
+import '../utils/app_flow.dart';
 import 'role_selection_screen.dart';
+import 'home/student_home.dart';
+import 'home/teacher_home.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -13,207 +16,178 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _rotationAnimation;
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late AnimationController _scaleController;
+
+  late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-
-    _rotationAnimation = Tween<double>(begin: 0, end: 2).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
     );
 
-    _animationController.forward();
+    _fadeController.forward();
+    _scaleController.forward();
 
-    _navigateToNext();
-  }
-
-  void _navigateToNext() {
+    // Navigate after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const RoleSelectionScreen(),
-          ),
-        );
+        _navigateBasedOnAuth();
       }
     });
   }
 
+  void _navigateBasedOnAuth() {
+    final authProvider = context.read<AuthProvider>();
+
+    // Check if user is authenticated
+    if (authProvider.isAuthenticated && authProvider.user != null) {
+      // User is logged in - navigate to home screen based on role
+      final userRole = authProvider.user!.role;
+      AppFlow.setLoggedIn(true);
+      AppFlow.setUserRole(userRole);
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => userRole == 'student'
+              ? const StudentHomeScreen()
+              : const TeacherHomeScreen(),
+        ),
+        (route) => false,
+      );
+    } else {
+      // User is not logged in - navigate to role selection
+      AppFlow.setLoggedIn(false);
+      AppFlow.setFirstTimeUser(true);
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => const RoleSelectionScreen(),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   void dispose() {
-    _animationController.dispose();
+    _fadeController.dispose();
+    _scaleController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = AppConstants.isMobile(context);
-    final logoSize = isMobile ? 100.0 : 140.0;
-    final titleSize = isMobile ? 36.0 : 48.0;
-
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: Center(
-        child: SingleChildScrollView(
+      backgroundColor: AppColors.primaryColor,
+      body: SafeArea(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo with rotation animation
-              ScaleAnimation(
-                beginScale: 0.5,
-                duration: const Duration(milliseconds: 1500),
-                child: RotationTransition(
-                  turns: _rotationAnimation,
-                  child: ScaleTransition(
-                    scale: _scaleAnimation,
-                    child: Container(
-                      width: logoSize,
-                      height: logoSize,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            AppColors.primaryColor,
-                            AppColors.secondaryColor,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          logoSize * 0.25,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryColor.withOpacity(0.4),
-                            blurRadius: 30,
-                            offset: const Offset(0, 12),
-                          ),
-                          BoxShadow(
-                            color: AppColors.secondaryColor.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(-8, -8),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.school,
-                          size: logoSize * 0.5,
-                          color: AppColors.surfaceColor,
-                        ),
-                      ),
+              // Logo
+              ScaleTransition(
+                scale: _scaleAnimation,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.2),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.4),
+                      width: 2,
                     ),
-                  ),
-                ),
-              ),
-              SizedBox(height: isMobile ? 40 : 60),
-              // App Name with gradient
-              FadeAnimation(
-                duration: const Duration(milliseconds: 1000),
-                begin: 0.3,
-                child: ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [
-                      AppColors.primaryColor,
-                      AppColors.secondaryColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
                     ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ).createShader(bounds),
-                  child: Text(
-                    'Classly',
-                    style: AppTextStyles.headingLarge.copyWith(
-                      fontSize: titleSize,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.surfaceColor,
-                      letterSpacing: -1.0,
-                    ),
+                  ),
+                  child: const Icon(
+                    Icons.school,
+                    size: 60,
+                    color: Colors.white,
                   ),
                 ),
               ),
-              SizedBox(height: isMobile ? 12 : 16),
-              // Tagline
-              FadeAnimation(
-                duration: const Duration(milliseconds: 1200),
-                begin: 0.2,
-                child: Text(
-                  'Learn & Teach Together',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontSize: isMobile ? 14 : 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textLight,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              SizedBox(height: isMobile ? 60 : 80),
-              // Loading Indicator with custom design
-              FadeAnimation(
-                duration: const Duration(milliseconds: 1400),
-                begin: 0.1,
+              const SizedBox(height: 30),
+
+              // Title
+              FadeTransition(
+                opacity: _fadeAnimation,
                 child: Column(
                   children: [
-                    SizedBox(
-                      height: 50,
-                      width: 50,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Outer circle
-                          const SizedBox(
-                            height: 50,
-                            width: 50,
-                            child: CircularProgressIndicator(
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                AppColors.primaryColor,
-                              ),
-                              strokeWidth: 3,
-                              strokeCap: StrokeCap.round,
-                            ),
-                          ),
-                          // Inner circle
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryColor.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppColors.primaryColor.withOpacity(0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.school,
-                                size: 20,
-                                color: AppColors.primaryColor,
-                              ),
-                            ),
-                          ),
-                        ],
+                    const Text(
+                      'Classly',
+                      style: TextStyle(
+                        fontSize: 42,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 2,
                       ),
                     ),
-                    SizedBox(height: isMobile ? 16 : 20),
+                    const SizedBox(height: 12),
                     Text(
-                      'Starting your journey...',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textLight,
-                        fontWeight: FontWeight.w500,
+                      'Classroom Lecture Sharing Platform',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white.withOpacity(0.8),
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 60),
+
+              // Loading Indicator
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // Loading Text
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Text(
+                  'Loading...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],

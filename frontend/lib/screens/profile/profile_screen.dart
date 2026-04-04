@@ -1,3 +1,4 @@
+import 'package:classly_frontend/utils/app_flow.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
@@ -295,6 +296,8 @@ class ProfileScreen extends StatelessWidget {
                                           child: ElevatedButton(
                                             onPressed: () {
                                               authProvider.logout();
+                                              AppFlow.reset();
+
                                               Navigator.of(context)
                                                   .pushAndRemoveUntil(
                                                 MaterialPageRoute(
@@ -307,25 +310,8 @@ class ProfileScreen extends StatelessWidget {
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
                                                   AppColors.errorColor,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                  AppConstants.radiusMedium,
-                                                ),
-                                              ),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                vertical: 12,
-                                              ),
                                             ),
-                                            child: Text(
-                                              'Logout',
-                                              style: AppTextStyles.bodySmall
-                                                  .copyWith(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
+                                            child: const Text('Logout'),
                                           ),
                                         ),
                                       ],
