@@ -206,8 +206,7 @@ class ProfileScreen extends StatelessWidget {
                               context: context,
                               applicationName: 'Classly',
                               applicationVersion: '1.0.0',
-                              applicationLegalese:
-                                  'Made with ❤️ for learning',
+                              applicationLegalese: 'Made with ❤️ for learning',
                             );
                           },
                         ),
@@ -251,8 +250,8 @@ class ProfileScreen extends StatelessWidget {
                                       const SizedBox(height: 16),
                                       Text(
                                         'Logout?',
-                                        style: AppTextStyles.headingSmall
-                                            .copyWith(
+                                        style:
+                                            AppTextStyles.headingSmall.copyWith(
                                           color: Colors.black87,
                                         ),
                                       ),
@@ -260,8 +259,7 @@ class ProfileScreen extends StatelessWidget {
                                       Text(
                                         'Are you sure you want to logout from Classly?',
                                         textAlign: TextAlign.center,
-                                        style:
-                                            AppTextStyles.bodySmall.copyWith(
+                                        style: AppTextStyles.bodySmall.copyWith(
                                           color: Colors.grey.shade600,
                                         ),
                                       ),
@@ -301,23 +299,18 @@ class ProfileScreen extends StatelessWidget {
                                           const SizedBox(width: 12),
                                           Expanded(
                                             child: ElevatedButton(
-                                              onPressed: () async {
+                                              onPressed: () {
                                                 authProvider.logout();
                                                 AppFlow.reset();
-                                                // Reset welcome screen so it shows again on next login
-                                                await FirstTimeUserManager
-                                                    .reset();
 
-                                                if (context.mounted) {
-                                                  Navigator.of(context)
-                                                      .pushAndRemoveUntil(
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          const SplashScreen(),
-                                                    ),
-                                                    (route) => false,
-                                                  );
-                                                }
+                                                Navigator.of(context)
+                                                    .pushAndRemoveUntil(
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        const SplashScreen(),
+                                                  ),
+                                                  (route) => false,
+                                                );
                                               },
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor:
@@ -343,7 +336,7 @@ class ProfileScreen extends StatelessWidget {
                   // Footer
                   FadeAnimation(
                     child: Text(
-                      'Made with ❤️ for learning',
+                      'Made with ❤️ by Aryan Nagori',
                       textAlign: TextAlign.center,
                       style: AppTextStyles.bodySmall.copyWith(
                         color: Colors.grey.shade500,
