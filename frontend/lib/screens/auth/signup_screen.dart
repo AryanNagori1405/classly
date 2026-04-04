@@ -1,12 +1,12 @@
+import 'package:classly_frontend/widgets/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../config/constants.dart';
 import '../../providers/auth_provider.dart';
-import '../../utils/app_flow.dart';
+import '../welcome_screen.dart';
 import '../home/student_home.dart';
 import '../home/teacher_home.dart';
-import '../welcome_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -31,7 +31,7 @@ class _SignupScreenState extends State<SignupScreen>
   final _semesterController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
+  
   bool _showPassword = false;
   bool _showConfirmPassword = false;
   bool _agreeToTerms = false;
@@ -131,17 +131,14 @@ class _SignupScreenState extends State<SignupScreen>
 
       if (mounted) {
         if (success) {
-          AppFlow.setFirstTimeUser(true);
-          AppFlow.setLoggedIn(true);
-          AppFlow.setUserRole(widget.selectedRole);
-
-          // Navigate to Welcome Screen for first-time users
+          // Navigate to Welcome Screen with parameters
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => WelcomeScreen(
+            SmoothPageTransition(
+              page: WelcomeScreen(
                 userName: _nameController.text.trim(),
                 userRole: widget.selectedRole,
                 uid: _uidController.text.trim(),
+                showAfterSignup: true,
               ),
             ),
             (route) => false,
@@ -187,14 +184,10 @@ class _SignupScreenState extends State<SignupScreen>
                           height: 100,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.primaryColor.withOpacity(0.1),
-                            border: Border.all(
-                              color: AppColors.primaryColor.withOpacity(0.3),
-                              width: 2,
-                            ),
+                            gradient: AppGradients.primaryGradient,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primaryColor.withOpacity(0.15),
+                                color: AppColors.primaryColor.withOpacity(0.25),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -203,7 +196,7 @@ class _SignupScreenState extends State<SignupScreen>
                           child: const Icon(
                             Icons.school,
                             size: 50,
-                            color: AppColors.primaryColor,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -216,7 +209,7 @@ class _SignupScreenState extends State<SignupScreen>
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primaryColor,
+                          color: AppColors.textDark,
                           letterSpacing: 1,
                         ),
                       ),
@@ -224,11 +217,11 @@ class _SignupScreenState extends State<SignupScreen>
                       const SizedBox(height: 6),
 
                       // Subtitle
-                      Text(
+                      const Text(
                         'Join Classly Community',
                         style: TextStyle(
                           fontSize: 15,
-                          color: Colors.grey.shade600,
+                          color: AppColors.textLight,
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -242,17 +235,20 @@ class _SignupScreenState extends State<SignupScreen>
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withOpacity(0.1),
+                          gradient: AppGradients.primaryGradient,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.primaryColor.withOpacity(0.3),
-                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryColor.withOpacity(0.2),
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
                         child: Text(
                           'Signing up as ${widget.selectedRole.toUpperCase()}',
                           style: const TextStyle(
                             fontSize: 12,
-                            color: AppColors.primaryColor,
+                            color: Colors.white,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -422,8 +418,7 @@ class _SignupScreenState extends State<SignupScreen>
                           );
                         },
                         child: Container(
-                          padding:
-                              const EdgeInsets.all(AppConstants.paddingMedium),
+                          padding: const EdgeInsets.all(AppConstants.paddingMedium),
                           decoration: BoxDecoration(
                             color: AppColors.primaryColor.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(12),
@@ -437,8 +432,7 @@ class _SignupScreenState extends State<SignupScreen>
                               Checkbox(
                                 value: _agreeToTerms,
                                 onChanged: (value) {
-                                  setState(
-                                      () => _agreeToTerms = value ?? false);
+                                  setState(() => _agreeToTerms = value ?? false);
                                 },
                                 activeColor: AppColors.primaryColor,
                                 checkColor: Colors.white,
@@ -446,18 +440,18 @@ class _SignupScreenState extends State<SignupScreen>
                                   color: AppColors.primaryColor,
                                 ),
                               ),
-                              Expanded(
+                              const Expanded(
                                 child: Text.rich(
                                   TextSpan(
                                     text: 'I agree to ',
                                     style: TextStyle(
-                                      color: Colors.grey.shade700,
+                                      color: AppColors.textMuted,
                                       fontSize: 13,
                                     ),
-                                    children: const [
+                                    children: [
                                       TextSpan(
                                         text: 'Terms & Conditions',
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           color: AppColors.primaryColor,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -504,10 +498,10 @@ class _SignupScreenState extends State<SignupScreen>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            const Text(
                               'Already have an account? ',
                               style: TextStyle(
-                                color: Colors.grey.shade600,
+                                color: AppColors.textMuted,
                                 fontSize: 14,
                               ),
                             ),
@@ -567,9 +561,9 @@ class _SignupScreenState extends State<SignupScreen>
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.15),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -578,13 +572,13 @@ class _SignupScreenState extends State<SignupScreen>
           obscureText: isPassword && !showPassword,
           validator: validator,
           style: const TextStyle(
-            color: Colors.black87,
+            color: AppColors.textDark,
             fontSize: 16,
           ),
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(
-              color: Colors.grey.shade400,
+              color: AppColors.textLight,
               fontSize: 14,
             ),
             prefixIcon: Icon(
@@ -597,7 +591,9 @@ class _SignupScreenState extends State<SignupScreen>
                       onShowPasswordChanged?.call(!showPassword);
                     },
                     child: Icon(
-                      showPassword ? Icons.visibility : Icons.visibility_off,
+                      showPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                       color: AppColors.primaryColor.withOpacity(0.6),
                     ),
                   )
@@ -666,77 +662,45 @@ class _SignupScreenState extends State<SignupScreen>
           ),
         );
       },
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          gradient: isPrimary
-              ? LinearGradient(
-                  colors: [
-                    AppColors.primaryColor,
-                    AppColors.primaryColor.withOpacity(0.8),
-                  ],
-                )
-              : const LinearGradient(
-                  colors: [
-                    Colors.white,
-                    Colors.white,
-                  ],
-                ),
-          border: isPrimary
-              ? null
-              : Border.all(
-                  color: AppColors.primaryColor,
-                  width: 2,
-                ),
-          boxShadow: isPrimary
-              ? [
-                  BoxShadow(
-                    color: AppColors.primaryColor.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: isLoading ? null : onPressed,
-            borderRadius: BorderRadius.circular(15),
-            child: Center(
-              child: isLoading
-                  ? SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isPrimary ? Colors.white : AppColors.primaryColor,
-                        ),
-                      ),
-                    )
-                  : Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            isPrimary ? Colors.white : AppColors.primaryColor,
-                        letterSpacing: 1,
-                      ),
-                    ),
-            ),
-          ),
-        ),
+      child: CustomButton(
+        label: label,
+        onPressed: onPressed,
+        isLoading: isLoading,
+        isPrimary: isPrimary,
       ),
     );
   }
+}
+
+class SmoothPageTransition extends PageRouteBuilder {
+  final Widget page;
+
+  SmoothPageTransition({required this.page})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) => page,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOutCubic;
+
+            var tween = Tween(begin: begin, end: end).chain(
+              CurveTween(curve: curve),
+            );
+
+            var fadeAnimation = animation.drive(
+              Tween<double>(begin: 0.0, end: 1.0).chain(
+                CurveTween(curve: curve),
+              ),
+            );
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: FadeTransition(
+                opacity: fadeAnimation,
+                child: child,
+              ),
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        );
 }

@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../config/constants.dart';
-import '../widgets/animations/fade_animation.dart';
-import '../widgets/animations/slide_animation.dart';
+import 'role_selection_screen.dart';
 import 'home/student_home.dart';
 import 'home/teacher_home.dart';
 
 class WelcomeScreen extends StatefulWidget {
-  final String userName;
-  final String userRole;
-  final String uid;
+  final String? userName;
+  final String? userRole;
+  final String? uid;
+  final bool showAfterSignup;
 
   const WelcomeScreen({
     Key? key,
-    required this.userName,
-    required this.userRole,
-    required this.uid,
+    this.userName,
+    this.userRole,
+    this.uid,
+    this.showAfterSignup = false,
   }) : super(key: key);
 
   @override
@@ -41,7 +42,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInCubic),
     );
 
     _slideController = AnimationController(
@@ -49,15 +50,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       vsync: this,
     );
     _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-      CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
+        Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
     );
 
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 0.7, end: 1).animate(
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
     );
 
@@ -82,66 +83,64 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                SizedBox(height: size.height * 0.05),
+                SizedBox(height: size.height * 0.06),
 
-                // Welcome Icon
+                // Welcome Icon with Glow
                 ScaleTransition(
                   scale: _scaleAnimation,
                   child: Container(
-                    width: 100,
-                    height: 100,
+                    width: 110,
+                    height: 110,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primaryColor.withOpacity(0.2),
-                          AppColors.primaryColor.withOpacity(0.1),
-                        ],
-                      ),
-                      border: Border.all(
-                        color: AppColors.primaryColor.withOpacity(0.3),
-                        width: 2,
-                      ),
+                      gradient: AppGradients.primaryGradient,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryColor.withOpacity(0.35),
+                          blurRadius: 30,
+                          offset: const Offset(0, 12),
+                          spreadRadius: 2,
+                        ),
+                        BoxShadow(
+                          color: AppColors.primaryColor.withOpacity(0.15),
+                          blurRadius: 60,
+                          offset: const Offset(0, 24),
+                          spreadRadius: 10,
+                        ),
+                      ],
                     ),
                     child: const Icon(
-                      Icons.check_circle,
-                      size: 50,
-                      color: AppColors.primaryColor,
+                      Icons.check_circle_rounded,
+                      size: 55,
+                      color: Colors.white,
                     ),
                   ),
                 ),
 
-                SizedBox(height: size.height * 0.04),
+                SizedBox(height: size.height * 0.05),
 
-                // Welcome Title
+                // Welcome Title - Show different text based on context
                 FadeTransition(
                   opacity: _fadeAnimation,
-                  child: Text(
-                    'Welcome to Classly! 🎉',
-                    style: AppTextStyles.headingMedium.copyWith(
-                      fontSize: 28,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-                SizedBox(height: size.height * 0.02),
-
-                // User Name
-                SlideTransition(
-                  position: _slideAnimation,
-                  child: Text(
-                    widget.userName,
-                    style: AppTextStyles.headingSmall.copyWith(
-                      fontSize: 24,
-                      color: AppColors.primaryColor,
-                    ),
-                    textAlign: TextAlign.center,
+                  child: Column(
+                    children: [
+                      Text(
+                        widget.showAfterSignup
+                            ? 'Welcome to Classly, ${widget.userName}! 🎉'
+                            : 'Welcome to Classly 🎉',
+                        style: AppTextStyles.headingMedium.copyWith(
+                          fontSize: 30,
+                          color: Colors.black87,
+                          height: 1.2,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
 
@@ -151,60 +150,66 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Text(
-                    'Account created successfully!',
+                    widget.showAfterSignup
+                        ? 'Your account has been created successfully!'
+                        : 'Your Classroom Lecture Sharing Platform',
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.grey.shade600,
-                      fontSize: 16,
+                      color: Colors.grey.shade500,
+                      fontSize: 15,
+                      height: 1.5,
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ),
 
-                SizedBox(height: size.height * 0.06),
+                SizedBox(height: size.height * 0.08),
 
-                // Features List
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    children: [
-                      _buildFeatureItem(
-                        icon: Icons.play_circle_outline,
-                        title: 'Watch Lectures',
-                        description: 'Access recorded classroom lectures',
-                        delay: 200,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFeatureItem(
-                        icon: Icons.groups_outlined,
-                        title: 'Join Communities',
-                        description: 'Connect with your classmates',
-                        delay: 400,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFeatureItem(
-                        icon: Icons.help_outline,
-                        title: 'Ask Doubts',
-                        description: 'Get instant clarifications',
-                        delay: 600,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFeatureItem(
-                        icon: Icons.download_outlined,
-                        title: 'Download Content',
-                        description: 'Save lectures for offline viewing',
-                        delay: 800,
-                      ),
-                    ],
+                // Features List with Staggered Animation
+                SlideTransition(
+                  position: _slideAnimation,
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Column(
+                      children: [
+                        _buildFeatureItem(
+                          icon: Icons.play_circle_rounded,
+                          title: 'Watch Lectures',
+                          description: 'Access recorded classroom lectures anytime',
+                          delay: 0,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildFeatureItem(
+                          icon: Icons.people_rounded,
+                          title: 'Join Communities',
+                          description: 'Connect and collaborate with classmates',
+                          delay: 100,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildFeatureItem(
+                          icon: Icons.lightbulb_rounded,
+                          title: 'Ask Doubts',
+                          description: 'Get instant clarifications from peers',
+                          delay: 200,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildFeatureItem(
+                          icon: Icons.download_rounded,
+                          title: 'Download Content',
+                          description: 'Save lectures for offline viewing anytime',
+                          delay: 300,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
-                SizedBox(height: size.height * 0.08),
+                SizedBox(height: size.height * 0.10),
 
                 // Start Button
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: 1),
                   duration: const Duration(milliseconds: 1200),
-                  curve: Curves.easeOut,
+                  curve: Curves.easeOutCubic,
                   builder: (context, value, child) {
                     return Transform.translate(
                       offset: Offset(0, 50 * (1 - value)),
@@ -214,48 +219,89 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       ),
                     );
                   },
-                  child: Container(
-                    width: double.infinity,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primaryColor,
-                          AppColors.primaryColor.withOpacity(0.8),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (widget.showAfterSignup && widget.userRole != null) {
+                        // Go to home after signup
+                        Navigator.of(context).pushAndRemoveUntil(
+                          SmoothPageTransition(
+                            page: widget.userRole == 'student'
+                                ? const StudentHomeScreen()
+                                : const TeacherHomeScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      } else {
+                        // Go to role selection from initial welcome
+                        Navigator.of(context).push(
+                          SmoothPageTransition(
+                            page: const RoleSelectionScreen(),
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: AppGradients.primaryGradient,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withOpacity(0.35),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                            spreadRadius: 1,
+                          ),
+                          BoxShadow(
+                            color: AppColors.primaryColor.withOpacity(0.12),
+                            blurRadius: 48,
+                            offset: const Offset(0, 16),
+                            spreadRadius: 8,
+                          ),
                         ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryColor.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (context) => widget.userRole == 'student'
-                                  ? const StudentHomeScreen()
-                                  : const TeacherHomeScreen(),
-                            ),
-                            (route) => false,
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(15),
-                        child: const Center(
-                          child: Text(
-                            'Get Started',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1,
-                            ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            if (widget.showAfterSignup && widget.userRole != null) {
+                              Navigator.of(context).pushAndRemoveUntil(
+                                SmoothPageTransition(
+                                  page: widget.userRole == 'student'
+                                      ? const StudentHomeScreen()
+                                      : const TeacherHomeScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            } else {
+                              Navigator.of(context).push(
+                                SmoothPageTransition(
+                                  page: const RoleSelectionScreen(),
+                                ),
+                              );
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                widget.showAfterSignup ? 'Get Started' : 'Get Started',
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -263,44 +309,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   ),
                 ),
 
-                SizedBox(height: size.height * 0.04),
-
-                // Skip Button
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: 1),
-                  duration: const Duration(milliseconds: 1400),
-                  curve: Curves.easeOut,
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(0, 50 * (1 - value)),
-                      child: Opacity(
-                        opacity: value,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (context) => widget.userRole == 'student'
-                              ? const StudentHomeScreen()
-                              : const TeacherHomeScreen(),
-                        ),
-                        (route) => false,
-                      );
-                    },
-                    child: Text(
-                      'Skip Tour',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.primaryColor,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: size.height * 0.03),
+                SizedBox(height: size.height * 0.06),
               ],
             ),
           ),
@@ -318,10 +327,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 800 + delay),
-      curve: Curves.easeOut,
+      curve: Curves.easeOutCubic,
       builder: (context, value, child) {
         return Transform.translate(
-          offset: Offset(30 * (1 - value), 0),
+          offset: Offset(0, 30 * (1 - value)),
           child: Opacity(
             opacity: value,
             child: child,
@@ -329,34 +338,45 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
-          border: Border.all(
-            color: Colors.grey.shade200,
-            width: 1.2,
-          ),
+          borderRadius: BorderRadius.circular(16),
           color: Colors.white,
+          border: Border.all(
+            color: Colors.grey.shade100,
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 8,
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              width: 50,
-              height: 50,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
-                color: AppColors.primaryColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primaryLight.withOpacity(0.15),
+                    AppColors.primaryColor.withOpacity(0.08),
+                  ],
+                ),
               ),
               child: Icon(
                 icon,
                 color: AppColors.primaryColor,
-                size: 24,
+                size: 28,
               ),
             ),
             const SizedBox(width: 16),
@@ -371,11 +391,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     description,
-                    style: AppTextStyles.caption.copyWith(
-                      color: Colors.grey.shade600,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: Colors.grey.shade500,
+                      height: 1.4,
                     ),
                   ),
                 ],
@@ -386,4 +407,37 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       ),
     );
   }
+}
+
+class SmoothPageTransition extends PageRouteBuilder {
+  final Widget page;
+
+  SmoothPageTransition({required this.page})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) => page,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOutCubic;
+
+            var tween = Tween(begin: begin, end: end).chain(
+              CurveTween(curve: curve),
+            );
+
+            var fadeAnimation = animation.drive(
+              Tween<double>(begin: 0.0, end: 1.0).chain(
+                CurveTween(curve: curve),
+              ),
+            );
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: FadeTransition(
+                opacity: fadeAnimation,
+                child: child,
+              ),
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        );
 }

@@ -1,3 +1,4 @@
+import 'package:classly_frontend/widgets/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
@@ -477,76 +478,11 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         );
       },
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          gradient: isPrimary
-              ? LinearGradient(
-                  colors: [
-                    AppColors.primaryColor,
-                    AppColors.primaryColor.withOpacity(0.8),
-                  ],
-                )
-              : const LinearGradient(
-                  colors: [
-                    Colors.white,
-                    Colors.white,
-                  ],
-                ),
-          border: isPrimary
-              ? null
-              : Border.all(
-                  color: AppColors.primaryColor,
-                  width: 2,
-                ),
-          boxShadow: isPrimary
-              ? [
-                  BoxShadow(
-                    color: AppColors.primaryColor.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: isLoading ? null : onPressed,
-            borderRadius: BorderRadius.circular(15),
-            child: Center(
-              child: isLoading
-                  ? SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isPrimary ? Colors.white : AppColors.primaryColor,
-                        ),
-                      ),
-                    )
-                  : Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            isPrimary ? Colors.white : AppColors.primaryColor,
-                        letterSpacing: 1,
-                      ),
-                    ),
-            ),
-          ),
-        ),
+      child: CustomButton(
+        label: label,
+        onPressed: onPressed,
+        isLoading: isLoading,
+        isPrimary: isPrimary,
       ),
     );
   }
