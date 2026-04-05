@@ -11,27 +11,8 @@ class StorageService {
   static Future<bool> saveUser(User user) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userJson = jsonEncode({
-        'uid': user.uid,
-        'regId': user.regId,
-        'name': user.name,
-        'email': user.email,
-        'role': user.role,
-        'department': user.department,
-        'semester': user.semester,
-        'profileImage': user.profileImage,
-        'bio': user.bio,
-        'enrolledCourses': user.enrolledCourses,
-        'joinedCommunities': user.joinedCommunities,
-        'coursesCount': user.coursesCount,
-        'videosCount': user.videosCount,
-        'rating': user.rating,
-        'isVerified': user.isVerified,
-        'createdAt': user.createdAt.toIso8601String(),
-      });
-      return await prefs.setString(_userKey, userJson);
+      return await prefs.setString(_userKey, jsonEncode(user.toJson()));
     } catch (e) {
-      print('Error saving user: $e');
       return false;
     }
   }
@@ -41,31 +22,9 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString(_userKey);
-
       if (userJson == null) return null;
-
-      final userMap = jsonDecode(userJson);
-      return User(
-        uid: userMap['uid'],
-        regId: userMap['regId'],
-        name: userMap['name'],
-        email: userMap['email'],
-        role: userMap['role'],
-        department: userMap['department'],
-        semester: userMap['semester'],
-        profileImage: userMap['profileImage'],
-        bio: userMap['bio'],
-        enrolledCourses: List<String>.from(userMap['enrolledCourses'] ?? []),
-        joinedCommunities:
-            List<String>.from(userMap['joinedCommunities'] ?? []),
-        coursesCount: userMap['coursesCount'] ?? 0,
-        videosCount: userMap['videosCount'] ?? 0,
-        rating: (userMap['rating'] ?? 0).toDouble(),
-        isVerified: userMap['isVerified'] ?? false,
-        createdAt: DateTime.parse(userMap['createdAt']),
-      );
+      return User.fromJson(jsonDecode(userJson) as Map<String, dynamic>);
     } catch (e) {
-      print('Error getting user: $e');
       return null;
     }
   }
@@ -76,7 +35,6 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       return await prefs.setString(_tokenKey, token);
     } catch (e) {
-      print('Error saving token: $e');
       return false;
     }
   }
@@ -87,7 +45,6 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_tokenKey);
     } catch (e) {
-      print('Error getting token: $e');
       return null;
     }
   }
@@ -98,7 +55,6 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       return await prefs.setBool(_isAuthenticatedKey, isAuthenticated);
     } catch (e) {
-      print('Error setting authentication: $e');
       return false;
     }
   }
@@ -109,7 +65,6 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_isAuthenticatedKey) ?? false;
     } catch (e) {
-      print('Error checking authentication: $e');
       return false;
     }
   }
@@ -123,7 +78,6 @@ class StorageService {
       await prefs.remove(_isAuthenticatedKey);
       return true;
     } catch (e) {
-      print('Error clearing data: $e');
       return false;
     }
   }

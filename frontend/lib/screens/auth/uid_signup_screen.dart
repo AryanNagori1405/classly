@@ -5,6 +5,7 @@ import '../../config/constants.dart';
 import '../../providers/auth_provider.dart';
 import '../home/student_home.dart';
 import '../home/teacher_home.dart';
+import 'uid_login_screen.dart';
 
 class UIDSignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -114,45 +115,21 @@ class _UIDSignupScreenState extends State<UIDSignupScreen>
         return;
       }
 
-      final authProvider = context.read<AuthProvider>();
-
-      final success = await authProvider.signup(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        role: widget.selectedRole,
-        uid: _uidController.text.trim(),
-        regId: _regIdController.text.trim(),
-        department: _departmentController.text.trim(),
-        semester: _semesterController.text.trim(),
+      // In UID-based auth, signup is done by admin.
+      // Direct user to the UID login flow instead.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Registration is managed by your institution. Use your UID or Registration ID to log in.'),
+          duration: Duration(seconds: 4),
+        ),
       );
-
       if (mounted) {
-        if (success) {
-          // Navigate based on role
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => widget.selectedRole == 'student'
-                  ? const StudentHomeScreen()
-                  : const TeacherHomeScreen(),
-            ),
-            (route) => false,
-          );
-        } else {
-          // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                authProvider.error ?? 'Signup failed',
-              ),
-              backgroundColor: AppColors.errorColor,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const UIDLoginScreen()),
+          (route) => false,
+        );
       }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

@@ -1,80 +1,90 @@
 class User {
-  final String id;
-  final String uid; // UID (unique identifier)
-  final String regId; // Registration ID
+  final int id;
+  final String uid;
+  final String regId;
   final String name;
   final String email;
-  final String role; // 'student' or 'teacher'
+  final String role; // 'student' | 'teacher' | 'admin'
   final String department;
   final String semester;
   final String profileImage;
   final String bio;
-  final List<String> enrolledCourses;
-  final List<String> joinedCommunities;
-  final int coursesCount;
-  final int videosCount;
-  final double rating;
   final DateTime createdAt;
   final bool isVerified;
 
   User({
-    String? id,
+    this.id = 0,
     required this.uid,
     required this.regId,
     required this.name,
-    required this.email,
+    this.email = '',
     required this.role,
-    required this.department,
-    required this.semester,
+    this.department = '',
+    this.semester = '',
     this.profileImage = 'https://via.placeholder.com/100',
     this.bio = '',
-    this.enrolledCourses = const [],
-    this.joinedCommunities = const [],
-    this.coursesCount = 0,
-    this.videosCount = 0,
-    this.rating = 0.0,
     DateTime? createdAt,
     this.isVerified = false,
-  })  : id = id ?? uid,
-        createdAt = createdAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'uid': uid,
-    'regId': regId,
-    'name': name,
-    'email': email,
-    'role': role,
-    'department': department,
-    'semester': semester,
-    'profileImage': profileImage,
-    'bio': bio,
-    'enrolledCourses': enrolledCourses,
-    'joinedCommunities': joinedCommunities,
-    'coursesCount': coursesCount,
-    'videosCount': videosCount,
-    'rating': rating,
-    'createdAt': createdAt.toIso8601String(),
-    'isVerified': isVerified,
-  };
+        'id': id,
+        'uid': uid,
+        'regId': regId,
+        'name': name,
+        'email': email,
+        'role': role,
+        'department': department,
+        'semester': semester,
+        'profileImage': profileImage,
+        'bio': bio,
+        'createdAt': createdAt.toIso8601String(),
+        'isVerified': isVerified,
+      };
 
   factory User.fromJson(Map<String, dynamic> json) => User(
-    id: json['id'],
-    uid: json['uid'],
-    regId: json['regId'],
-    name: json['name'],
-    email: json['email'],
-    role: json['role'],
-    department: json['department'],
-    semester: json['semester'],
-    profileImage: json['profileImage'] ?? 'https://via.placeholder.com/100',
-    bio: json['bio'] ?? '',
-    enrolledCourses: List<String>.from(json['enrolledCourses'] ?? []),
-    joinedCommunities: List<String>.from(json['joinedCommunities'] ?? []),
-    coursesCount: json['coursesCount'] ?? 0,
-    videosCount: json['videosCount'] ?? 0,
-    rating: (json['rating'] ?? 0).toDouble(),
-    createdAt: DateTime.parse(json['createdAt']),
-    isVerified: json['isVerified'] ?? false,
-  );
+        id: json['id'] as int? ?? 0,
+        uid: json['uid'] as String? ?? '',
+        regId: json['regId'] ?? json['reg_id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        email: json['email'] as String? ?? '',
+        role: json['role'] as String? ?? 'student',
+        department: json['department'] as String? ?? '',
+        semester: json['semester'] as String? ?? '',
+        profileImage: (json['profileImage'] ?? json['profile_image'])
+                as String? ??
+            'https://via.placeholder.com/100',
+        bio: json['bio'] as String? ?? '',
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+            : DateTime.now(),
+        isVerified: json['isVerified'] ?? json['is_verified'] as bool? ?? false,
+      );
+
+  User copyWith({
+    String? uid,
+    String? regId,
+    String? name,
+    String? email,
+    String? role,
+    String? department,
+    String? semester,
+    String? profileImage,
+    String? bio,
+    bool? isVerified,
+  }) =>
+      User(
+        id: id,
+        uid: uid ?? this.uid,
+        regId: regId ?? this.regId,
+        name: name ?? this.name,
+        email: email ?? this.email,
+        role: role ?? this.role,
+        department: department ?? this.department,
+        semester: semester ?? this.semester,
+        profileImage: profileImage ?? this.profileImage,
+        bio: bio ?? this.bio,
+        createdAt: createdAt,
+        isVerified: isVerified ?? this.isVerified,
+      );
 }
