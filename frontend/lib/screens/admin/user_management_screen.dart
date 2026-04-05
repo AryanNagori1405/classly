@@ -305,7 +305,9 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        role[0].toUpperCase() + role.substring(1),
+        role.isNotEmpty
+            ? role[0].toUpperCase() + role.substring(1)
+            : role,
         style: TextStyle(
           color: _color,
           fontSize: 11,

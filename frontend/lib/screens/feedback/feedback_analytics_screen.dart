@@ -309,7 +309,9 @@ class _CategoryBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        category[0].toUpperCase() + category.substring(1),
+        category.isNotEmpty
+            ? category[0].toUpperCase() + category.substring(1)
+            : category,
         style: const TextStyle(
           color: AppColors.primaryColor,
           fontSize: 12,
