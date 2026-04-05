@@ -1,5 +1,6 @@
 import 'package:classly_frontend/models/user_model.dart';
 import 'package:classly_frontend/screens/profile/edit_profile_screen.dart';
+import 'package:classly_frontend/screens/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
@@ -191,38 +192,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                           child: Column(
                             children: [
                               _buildAnimatedMenuItem(
-                                icon: Icons.person_rounded,
-                                title: 'Edit Profile',
-                                subtitle: 'Update your information',
-                                color: AppColors.primaryColor,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const EditProfileScreen(),
-                                    ),
-                                  );
-                                },
-                                delay: 0,
-                              ),
-                              const SizedBox(height: 12),
-                              _buildAnimatedMenuItem(
                                 icon: Icons.settings_rounded,
                                 title: 'Settings',
                                 subtitle: 'Manage your preferences',
                                 color: const Color(0xFF8B5CF6),
                                 onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          const Text('Settings - Coming soon'),
-                                      backgroundColor: AppColors.accentColor,
-                                      behavior: SnackBarBehavior.floating,
-                                      margin: const EdgeInsets.all(16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const SettingsScreen(),
                                     ),
                                   );
                                 },
