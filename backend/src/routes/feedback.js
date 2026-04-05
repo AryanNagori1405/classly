@@ -1,74 +1,46 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const auth = require('../middleware/auth');
 const router = express.Router();
 
-// Middleware to verify JWT token
-function authenticateToken(req, res, next) {
-    const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
-    
-    if (!token) {
-        return res.status(401).json({ message: 'No token provided' });
-    }
+router.use(auth);
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ message: 'Invalid or expired token' });
-        }
-        req.user = user;
-        next();
-    });
-}
-
-// POST /api/feedback - Submit anonymous feedback to teacher
-router.post('/', authenticateToken, async (req, res) => {
+// ── POST /api/feedback  – student sends anonymous feedback to teacher ─────────
+router.post('/', async (req, res) => {
     try {
-        const { teacher_id, course_id, feedback_type, message, rating } = req.body;
-        const studentId = req.user.id;
+        const { teacher_id, category, message } = req.body;
+        const senderUserId = req.user.id;
 
-        // Validate required fields
         if (!teacher_id || !message) {
-            return res.status(400).json({ message: 'Teacher ID and message are required' });
+            return res.status(400).json({ message: 'teacher_id and message are required' });
         }
 
-        // Validate feedback type
-        const validTypes = ['suggestion', 'complaint', 'praise', 'question', 'other'];
-        if (feedback_type && !validTypes.includes(feedback_type)) {
-            return res.status(400).json({ message: 'Invalid feedback type' });
-        }
+        const validCategories = ['suggestion', 'bug', 'improvement', 'other'];
+        const cat = category && validCategories.includes(category) ? category : 'suggestion';
 
-        // Check if teacher exists
-        const teacherResult = await pool.query(
-            'SELECT * FROM users WHERE id = $1 AND role = $2',
-            [teacher_id, 'teacher']
+        // Verify teacher exists
+        const teacherCheck = await pool.query(
+            "SELECT id FROM users WHERE id = $1 AND role = 'teacher' AND is_active = TRUE",
+            [teacher_id]
         );
-
-        if (teacherResult.rows.length === 0) {
+        if (teacherCheck.rows.length === 0) {
             return res.status(404).json({ message: 'Teacher not found' });
         }
 
-        // Check if student is enrolled in course (if course_id provided)
-        if (course_id) {
-            const enrollmentResult = await pool.query(
-                'SELECT * FROM enrollments WHERE course_id = $1 AND student_id = $2',
-                [course_id, studentId]
-            );
+        // Capture IP and user-agent for admin fraud-detection
+        const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+        const deviceInfo = req.headers['user-agent'] || null;
 
-            if (enrollmentResult.rows.length === 0) {
-                return res.status(403).json({ message: 'You are not enrolled in this course' });
-            }
-        }
-
-        // Insert feedback (anonymous)
         const result = await pool.query(
-            `INSERT INTO teacher_feedback (teacher_id, student_id, course_id, feedback_type, message, rating, is_anonymous, is_read, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-             RETURNING id, teacher_id, course_id, feedback_type, message, rating, is_read, created_at`,
-            [teacher_id, studentId, course_id || null, feedback_type || 'other', message, rating || null, true, false]
+            `INSERT INTO anonymous_feedback
+             (teacher_id, sender_user_id, category, message, ip_address, device_info)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id, teacher_id, category, message, created_at`,
+            [teacher_id, senderUserId, cat, message, ipAddress, deviceInfo]
         );
 
         res.status(201).json({
-            message: 'Feedback submitted successfully (anonymous)',
+            message: 'Feedback sent anonymously',
             feedback: result.rows[0]
         });
     } catch (error) {
@@ -77,54 +49,31 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
-// GET /api/teachers/:teacherId/feedback - Teacher views their feedback
-router.get('/teachers/:teacherId/feedback', authenticateToken, async (req, res) => {
+// ── GET /api/feedback/received  – teacher views their feedback (no sender) ───
+router.get('/received', async (req, res) => {
     try {
-        const { teacherId } = req.params;
         const userId = req.user.id;
-        const { filter, sortBy } = req.query;
 
-        // Check if user is the teacher
-        if (parseInt(teacherId) !== userId) {
-            return res.status(403).json({ message: 'You can only view your own feedback' });
+        if (req.user.role !== 'teacher') {
+            return res.status(403).json({ message: 'Only teachers can access this endpoint' });
         }
 
-        let query = `
-            SELECT tf.id, tf.teacher_id, tf.course_id, tf.feedback_type, tf.message, 
-                   tf.rating, tf.is_read, tf.created_at, tf.updated_at,
-                   CASE WHEN tf.is_anonymous THEN 'Anonymous Student' ELSE u.name END as student_name,
-                   c.title as course_title
-            FROM teacher_feedback tf
-            JOIN users u ON tf.student_id = u.id
-            LEFT JOIN courses c ON tf.course_id = c.id
-            WHERE tf.teacher_id = $1
-        `;
+        const result = await pool.query(
+            `SELECT id, category, message, is_read, teacher_response, created_at
+             FROM anonymous_feedback
+             WHERE teacher_id = $1
+             ORDER BY created_at DESC`,
+            [userId]
+        );
 
-        let params = [teacherId];
-
-        // Filter by type
-        if (filter === 'unread') {
-            query += ` AND tf.is_read = false`;
-        } else if (filter && ['suggestion', 'complaint', 'praise', 'question', 'other'].includes(filter)) {
-            query += ` AND tf.feedback_type = $${params.length + 1}`;
-            params.push(filter);
-        }
-
-        // Sort by
-        if (sortBy === 'oldest') {
-            query += ` ORDER BY tf.created_at ASC`;
-        } else if (sortBy === 'highest_rated') {
-            query += ` ORDER BY tf.rating DESC`;
-        } else if (sortBy === 'lowest_rated') {
-            query += ` ORDER BY tf.rating ASC`;
-        } else {
-            query += ` ORDER BY tf.created_at DESC`;
-        }
-
-        const result = await pool.query(query, params);
+        // Mark all as read
+        await pool.query(
+            'UPDATE anonymous_feedback SET is_read = TRUE WHERE teacher_id = $1 AND is_read = FALSE',
+            [userId]
+        );
 
         res.json({
-            message: 'Feedback retrieved successfully',
+            message: 'Feedback retrieved',
             count: result.rows.length,
             feedback: result.rows
         });
@@ -134,175 +83,94 @@ router.get('/teachers/:teacherId/feedback', authenticateToken, async (req, res) 
     }
 });
 
-// PATCH /api/feedback/:feedbackId/read - Mark feedback as read
-router.patch('/:feedbackId/read', authenticateToken, async (req, res) => {
+// ── GET /api/feedback/all  – admin views all feedback WITH real senders ───────
+router.get('/all', async (req, res) => {
     try {
-        const { feedbackId } = req.params;
-        const userId = req.user.id;
-
-        // Get feedback
-        const feedbackResult = await pool.query(
-            'SELECT * FROM teacher_feedback WHERE id = $1',
-            [feedbackId]
-        );
-
-        if (feedbackResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Feedback not found' });
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Admin access required' });
         }
 
-        const feedback = feedbackResult.rows[0];
-
-        // Check if user is the teacher
-        if (feedback.teacher_id !== userId) {
-            return res.status(403).json({ message: 'You can only mark your own feedback as read' });
-        }
-
-        // Update read status
         const result = await pool.query(
-            `UPDATE teacher_feedback 
-             SET is_read = true, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $1
-             RETURNING *`,
-            [feedbackId]
+            `SELECT af.id, af.category, af.message, af.ip_address, af.device_info,
+                    af.is_read, af.teacher_response, af.created_at,
+                    teacher.id   as teacher_id,   teacher.name as teacher_name,
+                    sender.id    as sender_id,    sender.name  as sender_name,
+                    sender.uid   as sender_uid,   sender.reg_id as sender_reg_id
+             FROM anonymous_feedback af
+             JOIN users teacher ON af.teacher_id     = teacher.id
+             JOIN users sender  ON af.sender_user_id = sender.id
+             ORDER BY af.created_at DESC`
         );
 
         res.json({
-            message: 'Feedback marked as read',
-            feedback: result.rows[0]
+            message: 'All feedback retrieved (admin view with sender info)',
+            count: result.rows.length,
+            feedback: result.rows
         });
     } catch (error) {
-        console.error('Error marking feedback as read:', error);
+        console.error('Error fetching all feedback:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
 
-// PATCH /api/feedback/:feedbackId/response - Teacher responds to feedback
-router.patch('/:feedbackId/response', authenticateToken, async (req, res) => {
+// ── PUT /api/feedback/:id/response  – teacher responds to feedback ────────────
+router.put('/:id/response', async (req, res) => {
     try {
-        const { feedbackId } = req.params;
-        const { response_message } = req.body;
+        const { id } = req.params;
+        const { response } = req.body;
         const userId = req.user.id;
 
-        // Validate required fields
-        if (!response_message) {
-            return res.status(400).json({ message: 'Response message is required' });
+        if (req.user.role !== 'teacher') {
+            return res.status(403).json({ message: 'Only teachers can respond to feedback' });
         }
 
-        // Get feedback
-        const feedbackResult = await pool.query(
-            'SELECT * FROM teacher_feedback WHERE id = $1',
-            [feedbackId]
-        );
-
-        if (feedbackResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Feedback not found' });
+        if (!response) {
+            return res.status(400).json({ message: 'response is required' });
         }
 
-        const feedback = feedbackResult.rows[0];
-
-        // Check if user is the teacher
-        if (feedback.teacher_id !== userId) {
-            return res.status(403).json({ message: 'You can only respond to your own feedback' });
-        }
-
-        // Update feedback with response
         const result = await pool.query(
-            `UPDATE teacher_feedback 
-             SET teacher_response = $1, is_read = true, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $2
-             RETURNING *`,
-            [response_message, feedbackId]
+            `UPDATE anonymous_feedback
+             SET teacher_response = $1, updated_at = NOW()
+             WHERE id = $2 AND teacher_id = $3
+             RETURNING id, category, message, teacher_response`,
+            [response, id, userId]
         );
 
-        res.json({
-            message: 'Response added successfully',
-            feedback: result.rows[0]
-        });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Feedback not found or not yours' });
+        }
+
+        res.json({ message: 'Response saved', feedback: result.rows[0] });
     } catch (error) {
-        console.error('Error adding response:', error);
+        console.error('Error responding to feedback:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
 
-// DELETE /api/feedback/:feedbackId - Teacher deletes feedback
-router.delete('/:feedbackId', authenticateToken, async (req, res) => {
+// ── GET /api/feedback/analytics  – teacher analytics ─────────────────────────
+router.get('/analytics', async (req, res) => {
     try {
-        const { feedbackId } = req.params;
         const userId = req.user.id;
 
-        // Get feedback
-        const feedbackResult = await pool.query(
-            'SELECT * FROM teacher_feedback WHERE id = $1',
-            [feedbackId]
-        );
-
-        if (feedbackResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Feedback not found' });
+        if (req.user.role !== 'teacher') {
+            return res.status(403).json({ message: 'Only teachers can access analytics' });
         }
 
-        const feedback = feedbackResult.rows[0];
-
-        // Check if user is the teacher
-        if (feedback.teacher_id !== userId) {
-            return res.status(403).json({ message: 'You can only delete your own feedback' });
-        }
-
-        // Delete feedback
-        await pool.query(
-            'DELETE FROM teacher_feedback WHERE id = $1',
-            [feedbackId]
+        const result = await pool.query(
+            `SELECT
+                COUNT(*)                                        as total,
+                COUNT(*) FILTER (WHERE is_read = FALSE)        as unread,
+                COUNT(*) FILTER (WHERE category = 'suggestion') as suggestions,
+                COUNT(*) FILTER (WHERE category = 'bug')        as bugs,
+                COUNT(*) FILTER (WHERE category = 'improvement') as improvements,
+                COUNT(*) FILTER (WHERE teacher_response IS NOT NULL) as responded
+             FROM anonymous_feedback WHERE teacher_id = $1`,
+            [userId]
         );
 
-        res.json({ message: 'Feedback deleted successfully' });
+        res.json({ analytics: result.rows[0] });
     } catch (error) {
-        console.error('Error deleting feedback:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-});
-
-// GET /api/feedback/stats - Get feedback statistics for teacher
-router.get('/teachers/:teacherId/stats', authenticateToken, async (req, res) => {
-    try {
-        const { teacherId } = req.params;
-        const userId = req.user.id;
-
-        // Check if user is the teacher
-        if (parseInt(teacherId) !== userId) {
-            return res.status(403).json({ message: 'You can only view your own stats' });
-        }
-
-        // Get statistics
-        const statsResult = await pool.query(
-            `SELECT 
-                COUNT(*) as total_feedback,
-                SUM(CASE WHEN is_read = false THEN 1 ELSE 0 END) as unread_count,
-                AVG(rating) as average_rating,
-                feedback_type,
-                COUNT(*) as type_count
-             FROM teacher_feedback
-             WHERE teacher_id = $1
-             GROUP BY feedback_type
-             ORDER BY type_count DESC`,
-            [teacherId]
-        );
-
-        const totalStats = await pool.query(
-            `SELECT 
-                COUNT(*) as total_feedback,
-                SUM(CASE WHEN is_read = false THEN 1 ELSE 0 END) as unread_count,
-                AVG(rating) as average_rating
-             FROM teacher_feedback
-             WHERE teacher_id = $1`,
-            [teacherId]
-        );
-
-        res.json({
-            message: 'Feedback statistics retrieved',
-            overall_stats: totalStats.rows[0],
-            by_type: statsResult.rows
-        });
-    } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error('Error fetching analytics:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });

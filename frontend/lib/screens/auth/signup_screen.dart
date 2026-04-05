@@ -5,6 +5,7 @@ import '../../config/constants.dart';
 import '../../providers/auth_provider.dart';
 import '../home/student_home.dart';
 import '../home/teacher_home.dart';
+import 'uid_login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -135,42 +136,21 @@ class _SignupScreenState extends State<SignupScreen>
 
       final authProvider = context.read<AuthProvider>();
 
-      final success = await authProvider.signup(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        role: widget.selectedRole,
-        regId: _regIdController.text.trim(),
-        department: _departmentController.text.trim(),
-        semester: _semesterController.text.trim(),
+      // In UID-based auth, signup is done by admin.
+      // Direct user to the UID login flow instead.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Registration is managed by your institution. Use your UID to log in.'),
+          duration: Duration(seconds: 4),
+        ),
       );
-
       if (mounted) {
-        if (success) {
-          Navigator.of(context).pushAndRemoveUntil(
-            SmoothPageTransition(
-              page: widget.selectedRole == 'student'
-                  ? const StudentHomeScreen()
-                  : const TeacherHomeScreen(),
-            ),
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authProvider.error ?? 'Signup failed'),
-              backgroundColor: AppColors.errorColor,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.all(16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
-        }
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const UIDLoginScreen()),
+          (route) => false,
+        );
       }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
