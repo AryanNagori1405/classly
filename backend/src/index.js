@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const pool = require('./config/database');
 const authRoutes = require('./routes/auth');
 const courseRoutes = require('./routes/courses');
@@ -10,11 +12,11 @@ const questionRoutes = require('./routes/questions');
 const submissionRoutes = require('./routes/submissions');
 const videosRoutes = require('./routes/videos');
 const communitiesRoutes = require('./routes/communities');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const timestampsRoutes = require('./routes/timestamps');
 const notesRoutes = require('./routes/notes');
 const feedbackRoutes = require('./routes/feedback');
+const bookmarksRoutes = require('./routes/bookmarks');
+const usersRoutes = require('./routes/users');
 const { startCleanupSchedule } = require('./jobs/videoCleanupJob');
 const analyticsRoutes = require('./routes/analytics');
 const adminRoutes = require('./routes/admin');
@@ -23,11 +25,56 @@ const notificationsRoutes = require('./routes/notifications');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(express.json());
+// ── CORS ─────────────────────────────────────────────────────────────────────
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
 
-// Test database connection
-pool.query('SELECT NOW()', (err, res) => {
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+}));
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+// Strict limiter for auth endpoints (OTP / login)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many requests. Please try again later.' },
+});
+
+// General API limiter
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Rate limit exceeded. Please slow down.' },
+});
+
+// General API limiter (applied first, more broad)
+app.use('/api/', apiLimiter);
+// Stricter limiter applied specifically to auth routes (overrides general for /api/auth)
+app.use('/api/auth', authLimiter);
+
+// ── Body parsers ──────────────────────────────────────────────────────────────
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ── Database health check ─────────────────────────────────────────────────────
+pool.query('SELECT NOW()', (err) => {
     if (err) {
         console.error('Database connection failed:', err);
     } else {
@@ -38,143 +85,31 @@ pool.query('SELECT NOW()', (err, res) => {
 // Start video cleanup scheduled job
 startCleanupSchedule();
 
-// ===== JWT VERIFICATION MIDDLEWARE =====
-const verifyToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    if (!token) {
-        return res.status(401).json({ message: "No token provided" });
-    }
-    
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) {
-            return res.status(401).json({ message: "Invalid or expired token" });
-        }
-        req.user = decoded;
-        next();
-    });
-};
-
-// ===== EMAIL SETUP =====
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD
-    }
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.get('/', (_req, res) => {
+    res.json({ message: 'Welcome to Classly Backend API', version: '2.0.0' });
 });
 
-const sendVerificationEmail = async (email, token) => {
-    const verificationUrl = `${process.env.CLIENT_URL}/verify-email?token=${token}`;
-    
-    const mailOptions = {
-        from: process.env.SMTP_FROM,
-        to: email,
-        subject: 'Verify your Classly email',
-        html: `
-            <h2>Welcome to Classly!</h2>
-            <p>Please verify your email by clicking the link below:</p>
-            <a href="${verificationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
-                Verify Email
-            </a>
-            <p>Or paste this link in your browser:</p>
-            <p>${verificationUrl}</p>
-            <p>This link expires in 24 hours.</p>
-        `
-    };
-
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log(`✅ Verification email sent to ${email}`);
-        return true;
-    } catch (error) {
-        console.error('❌ Error sending email:', error);
-        return false;
-    }
-};
-
-// ===== ROUTES =====
-app.get('/', (req, res) => {
-    res.json({ message: 'Welcome to Classly Backend API' });
-});
-
-// Auth Routes
-app.use('/api/auth', authRoutes);
-
-// Course Routes
-app.use('/api/courses', courseRoutes);
-
-// Enrollment Routes
-app.use('/api/enrollments', enrollmentRoutes);
-
-// Lessons Routes
-app.use('/api/lessons', lessonRoutes);
-
-// Quizzes Routes
-app.use('/api/quizzes', quizRoutes);
-
-// Questions Routes
-app.use('/api/questions', questionRoutes);
-
-// Submissions Routes
-app.use('/api/submissions', submissionRoutes);
-
-// Videos Routes
-app.use('/api/videos', videosRoutes);
-
-// Communities Routes
-app.use('/api/communities', communitiesRoutes);
-
-// Timestamp Routes (Doubts System)
-app.use('/api/timestamps', timestampsRoutes);
-
-// Notes Routes
-app.use('/api/notes', notesRoutes);
-
-// Feedback Routes
-app.use('/api/feedback', feedbackRoutes);
-
-// Analytics Routes
-app.use('/api/analytics', analyticsRoutes);
-
-// Admin Routes
-app.use('/api/admin', adminRoutes);
-
-// Notifications Routes
+app.use('/api/auth',          authRoutes);
+app.use('/api/courses',       courseRoutes);
+app.use('/api/enrollments',   enrollmentRoutes);
+app.use('/api/lessons',       lessonRoutes);
+app.use('/api/quizzes',       quizRoutes);
+app.use('/api/questions',     questionRoutes);
+app.use('/api/submissions',   submissionRoutes);
+app.use('/api/videos',        videosRoutes);
+app.use('/api/communities',   communitiesRoutes);
+app.use('/api/timestamps',    timestampsRoutes);
+app.use('/api/notes',         notesRoutes);
+app.use('/api/feedback',      feedbackRoutes);
+app.use('/api/bookmarks',     bookmarksRoutes);
+app.use('/api/users',         usersRoutes);
+app.use('/api/analytics',     analyticsRoutes);
+app.use('/api/admin',         adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
 
-// ===== PROTECTED ROUTES =====
-
-// Get user profile
-app.get('/api/user/profile', verifyToken, (req, res) => {
-    res.json({
-        message: "User profile retrieved",
-        user: {
-            id: req.user.id,
-            email: req.user.email
-        }
-    });
-});
-
-// Update user profile
-app.put('/api/user/profile', verifyToken, (req, res) => {
-    res.json({
-        message: "User profile updated",
-        user: req.user
-    });
-});
-
-// Delete user account
-app.delete('/api/user/account', verifyToken, (req, res) => {
-    res.json({
-        message: "User account deleted successfully",
-        user: req.user
-    });
-});
-
-// ===== ERROR HANDLING MIDDLEWARE =====
+// ── Error handler ─────────────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -183,5 +118,3 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`✅ Server is running on port ${PORT}`);
 });
-
-module.exports = { sendVerificationEmail };

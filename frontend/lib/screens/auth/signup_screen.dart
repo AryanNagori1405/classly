@@ -5,6 +5,7 @@ import '../../config/constants.dart';
 import '../../providers/auth_provider.dart';
 import '../home/student_home.dart';
 import '../home/teacher_home.dart';
+import 'uid_login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   final String selectedRole;
@@ -135,42 +136,228 @@ class _SignupScreenState extends State<SignupScreen>
 
       final authProvider = context.read<AuthProvider>();
 
-      final success = await authProvider.signup(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        role: widget.selectedRole,
-        regId: _regIdController.text.trim(),
-        department: _departmentController.text.trim(),
-        semester: _semesterController.text.trim(),
+      // In UID-based auth, signup is done by admin.
+      // Direct user to the UID login flow instead.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Registration is managed by your institution. Use your UID to log in.'),
+          duration: Duration(seconds: 4),
+        ),
       );
-
       if (mounted) {
-        if (success) {
-          Navigator.of(context).pushAndRemoveUntil(
-            SmoothPageTransition(
-              page: widget.selectedRole == 'student'
-                  ? const StudentHomeScreen()
-                  : const TeacherHomeScreen(),
-            ),
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authProvider.error ?? 'Signup failed'),
-              backgroundColor: AppColors.errorColor,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.all(16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
-        }
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const UIDLoginScreen()),
+          (route) => false,
+        );
       }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPER METHODS - DECLARED BEFORE build() method
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildAnimatedTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    bool isPassword = false,
+    bool showPassword = false,
+    Function(bool)? onShowPasswordChanged,
+    String? Function(String?)? validator,
+    int delay = 0,
+  }) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 800 + delay),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 50 * (1 - value)),
+          child: Opacity(opacity: value, child: child),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: TextFormField(
+          controller: controller,
+          obscureText: isPassword && !showPassword,
+          validator: validator,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(
+              color: Colors.grey.shade400,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+            prefixIcon: Icon(
+              icon,
+              color: AppColors.primaryColor.withOpacity(0.6),
+              size: 22,
+            ),
+            suffixIcon: isPassword
+                ? GestureDetector(
+                    onTap: () => onShowPasswordChanged?.call(!showPassword),
+                    child: Icon(
+                      showPassword
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                      color: AppColors.primaryColor.withOpacity(0.6),
+                      size: 20,
+                    ),
+                  )
+                : null,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: Colors.grey.shade200,
+                width: 1.5,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: Colors.grey.shade200,
+                width: 1.5,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: AppColors.primaryColor,
+                width: 2.5,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: AppColors.errorColor,
+                width: 1.5,
+              ),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: AppColors.errorColor,
+                width: 2.5,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
+            errorStyle: const TextStyle(
+              color: AppColors.errorColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedButton({
+    required String label,
+    required VoidCallback onPressed,
+    required bool isLoading,
+    bool isPrimary = true,
+    int delay = 0,
+  }) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 800 + delay),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 50 * (1 - value)),
+          child: Opacity(opacity: value, child: child),
+        );
+      },
+      child: SizedBox(
+        width: double.infinity,
+        height: 58,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: isPrimary ? AppGradients.primaryGradient : null,
+            color: isPrimary ? null : Colors.grey.shade100,
+            boxShadow: isPrimary
+                ? [
+                    BoxShadow(
+                      color: AppColors.primaryColor.withOpacity(0.35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : [],
+            border: !isPrimary
+                ? Border.all(
+                    color: Colors.grey.shade300,
+                    width: 1.5,
+                  )
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: isLoading ? null : onPressed,
+              borderRadius: BorderRadius.circular(16),
+              splashColor: isPrimary
+                  ? Colors.white.withOpacity(0.2)
+                  : Colors.black.withOpacity(0.05),
+              child: Center(
+                child: isLoading
+                    ? SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isPrimary ? Colors.white : AppColors.primaryColor,
+                          ),
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: isPrimary
+                              ? Colors.white
+                              : AppColors.primaryColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BUILD METHOD
+  // ═══════════════════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -409,7 +596,7 @@ class _SignupScreenState extends State<SignupScreen>
 
                           const SizedBox(height: 14),
 
-                          // Registration ID Field (Full Width - UID Removed)
+                          // Registration ID Field
                           _buildAnimatedTextField(
                             controller: _regIdController,
                             hintText: 'Registration Number',
@@ -656,203 +843,6 @@ class _SignupScreenState extends State<SignupScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildAnimatedTextField({
-    required TextEditingController controller,
-    required String hintText,
-    required IconData icon,
-    bool isPassword = false,
-    bool showPassword = false,
-    Function(bool)? onShowPasswordChanged,
-    String? Function(String?)? validator,
-    int delay = 0,
-  }) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 800 + delay),
-      curve: Curves.easeOut,
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 50 * (1 - value)),
-          child: Opacity(opacity: value, child: child),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: TextFormField(
-          controller: controller,
-          obscureText: isPassword && !showPassword,
-          validator: validator,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(
-              color: Colors.grey.shade400,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
-            prefixIcon: Icon(
-              icon,
-              color: AppColors.primaryColor.withOpacity(0.6),
-              size: 22,
-            ),
-            suffixIcon: isPassword
-                ? GestureDetector(
-                    onTap: () => onShowPasswordChanged?.call(!showPassword),
-                    child: Icon(
-                      showPassword
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded,
-                      color: AppColors.primaryColor.withOpacity(0.6),
-                      size: 20,
-                    ),
-                  )
-                : null,
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: Colors.grey.shade200,
-                width: 1.5,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: Colors.grey.shade200,
-                width: 1.5,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2.5,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: AppColors.errorColor,
-                width: 1.5,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: AppColors.errorColor,
-                width: 2.5,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 16,
-            ),
-            errorStyle: const TextStyle(
-              color: AppColors.errorColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAnimatedButton({
-    required String label,
-    required VoidCallback onPressed,
-    required bool isLoading,
-    bool isPrimary = true,
-    int delay = 0,
-  }) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 800 + delay),
-      curve: Curves.easeOut,
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 50 * (1 - value)),
-          child: Opacity(opacity: value, child: child),
-        );
-      },
-      child: SizedBox(
-        width: double.infinity,
-        height: 58,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: isPrimary ? AppGradients.primaryGradient : null,
-            color: isPrimary ? null : Colors.grey.shade100,
-            boxShadow: isPrimary
-                ? [
-                    BoxShadow(
-                      color: AppColors.primaryColor.withOpacity(0.35),
-                      blurRadius: 24,
-                      offset: const Offset(0, 12),
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : [],
-            border: !isPrimary
-                ? Border.all(
-                    color: Colors.grey.shade300,
-                    width: 1.5,
-                  )
-                : null,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: isLoading ? null : onPressed,
-              borderRadius: BorderRadius.circular(16),
-              splashColor: isPrimary
-                  ? Colors.white.withOpacity(0.2)
-                  : Colors.black.withOpacity(0.05),
-              child: Center(
-                child: isLoading
-                    ? SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            isPrimary ? Colors.white : AppColors.primaryColor,
-                          ),
-                          strokeWidth: 2.5,
-                        ),
-                      )
-                    : Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: isPrimary
-                              ? Colors.white
-                              : AppColors.primaryColor,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

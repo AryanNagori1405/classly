@@ -2,365 +2,402 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:5000/api';
+  static const String baseUrl = 'http://10.0.2.2:5000/api'; // Android emulator → localhost
+  // For physical devices use your machine's local IP, e.g. http://192.168.1.x:5000/api
 
-  /// Login with email and password
-  Future<Map<String, dynamic>> login({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
-      );
+  // ── helpers ─────────────────────────────────────────────────────────────────
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Login failed: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
+  Map<String, String> _headers({String? token}) => {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
+
+  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body,
+      {String? token}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(token: token),
+      body: jsonEncode(body),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) return data;
+    throw data['message'] ?? 'Request failed (${response.statusCode})';
   }
 
-  /// Login with Registration Number and Password
-  Future<Map<String, dynamic>> loginWithCredentials({
-    required String registrationNumber,
-    required String password,
-    required String role,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/login-credentials'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'registrationNumber': registrationNumber,
-          'password': password,
-          'role': role,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Login failed: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
+  Future<Map<String, dynamic>> _get(String path, {String? token}) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(token: token),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) return data;
+    throw data['message'] ?? 'Request failed (${response.statusCode})';
   }
 
-  /// Login with UID and Registration ID
-  Future<Map<String, dynamic>> loginWithUID({
-    required String uid,
-    required String regId,
-    required String role,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/login-uid'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'uid': uid,
-          'regId': regId,
-          'role': role,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'UID verification failed: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
+  Future<Map<String, dynamic>> _put(String path, Map<String, dynamic> body,
+      {String? token}) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(token: token),
+      body: jsonEncode(body),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) return data;
+    throw data['message'] ?? 'Request failed (${response.statusCode})';
   }
 
-  /// Register with email and password
+  Future<Map<String, dynamic>> _delete(String path, {String? token}) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(token: token),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) return data;
+    throw data['message'] ?? 'Request failed (${response.statusCode})';
+  }
+
+  // ── AUTH ─────────────────────────────────────────────────────────────────────
+
+  /// Step 1 – verify UID or Registration ID and receive an OTP
+  Future<Map<String, dynamic>> verifyUID({String? uid, String? regId}) =>
+      _post('/auth/verify-uid', {
+        if (uid != null) 'uid': uid,
+        if (regId != null) 'reg_id': regId,
+      });
+
+  /// Step 2 – verify the OTP and receive a JWT
+  Future<Map<String, dynamic>> verifyOTP({
+    required int userId,
+    required String otp,
+  }) =>
+      _post('/auth/verify-otp', {'user_id': userId, 'otp': otp});
+
+  /// Refresh token
+  Future<Map<String, dynamic>> refreshToken({required String token}) =>
+      _post('/auth/refresh-token', {'token': token});
+
+  /// Logout (client-side token disposal; server acknowledges)
+  Future<void> logout({required String token}) =>
+      _post('/auth/logout', {}, token: token);
+
+  /// Register a user (admin / seeding)
   Future<Map<String, dynamic>> register({
     required String name,
-    required String email,
-    required String password,
-    required String role,
-    required String uid,
-    required String regId,
-    required String department,
-    required String semester,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'password': password,
-          'role': role,
-          'uid': uid,
-          'regId': regId,
-          'department': department,
-          'semester': semester,
-        }),
-      );
+    String? uid,
+    String? regId,
+    String role = 'student',
+    String? department,
+    String? semester,
+    String? email,
+    String? phone,
+  }) =>
+      _post('/auth/register', {
+        'name': name,
+        if (uid != null) 'uid': uid,
+        if (regId != null) 'reg_id': regId,
+        'role': role,
+        if (department != null) 'department': department,
+        if (semester != null) 'semester': semester,
+        if (email != null) 'email': email,
+        if (phone != null) 'phone': phone,
+      });
 
-      if (response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Registration failed: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
-  }
+  /// Get own profile
+  Future<Map<String, dynamic>> getMyProfile({required String token}) =>
+      _get('/auth/me', token: token);
 
-  /// Logout
-  Future<void> logout({required String token}) async {
-    try {
-      await http.post(
-        Uri.parse('$baseUrl/auth/logout'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-    } catch (e) {
-      throw 'Logout failed: $e';
-    }
-  }
+  // ── USERS ────────────────────────────────────────────────────────────────────
 
-  /// Get user profile
-  Future<Map<String, dynamic>> getUserProfile({required String token}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/user/profile'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+  Future<Map<String, dynamic>> getUserProfile({required String token}) =>
+      _get('/users/profile', token: token);
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to fetch profile: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
-  }
-
-  /// Update user profile
   Future<Map<String, dynamic>> updateUserProfile({
     required String token,
     required Map<String, dynamic> data,
-  }) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/user/profile'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(data),
-      );
+  }) =>
+      _put('/users/profile', data, token: token);
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to update profile: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
-  }
+  Future<Map<String, dynamic>> getTeachers({required String token}) =>
+      _get('/users/teachers', token: token);
 
-  /// Get all videos/lectures
+  Future<Map<String, dynamic>> getPublicProfile({
+    required String token,
+    required int userId,
+  }) =>
+      _get('/users/$userId', token: token);
+
+  // ── VIDEOS / LECTURES ────────────────────────────────────────────────────────
+
   Future<Map<String, dynamic>> getVideos({
     required String token,
-    int page = 1,
-    int limit = 10,
-  }) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/videos?page=$page&limit=$limit'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+    String? subject,
+    String? search,
+    String sortBy = 'newest',
+  }) =>
+      _get(
+        '/videos?sortBy=$sortBy'
+        '${subject != null ? '&subject=$subject' : ''}'
+        '${search != null ? '&search=${Uri.encodeComponent(search)}' : ''}',
+        token: token,
       );
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to fetch videos: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
-  }
+  Future<Map<String, dynamic>> getVideo({
+    required String token,
+    required int videoId,
+  }) =>
+      _get('/videos/$videoId', token: token);
 
-  /// Upload a new lecture/video
   Future<Map<String, dynamic>> uploadLecture({
     required String token,
     required Map<String, dynamic> data,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/videos/upload'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(data),
-      );
+  }) =>
+      _post('/videos', data, token: token);
 
-      if (response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to upload lecture: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
-  }
-
-  /// Get all communities
-  Future<Map<String, dynamic>> getCommunities({
+  Future<Map<String, dynamic>> updateLecture({
     required String token,
-    int page = 1,
-    int limit = 10,
-  }) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/communities?page=$page&limit=$limit'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to fetch communities: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
-  }
-
-  /// Join a community
-  Future<Map<String, dynamic>> joinCommunity({
-    required String token,
-    required String communityId,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/communities/$communityId/join'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to join community: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
-  }
-
-  /// Get all doubts
-  Future<Map<String, dynamic>> getDoubts({
-    required String token,
-    int page = 1,
-    int limit = 10,
-  }) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/doubts?page=$page&limit=$limit'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to fetch doubts: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
-  }
-
-  /// Create a new doubt
-  Future<Map<String, dynamic>> createDoubt({
-    required String token,
+    required int videoId,
     required Map<String, dynamic> data,
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/doubts/create'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(data),
-      );
-
-      if (response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to create doubt: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
+    final response = await http.patch(
+      Uri.parse('$baseUrl/videos/$videoId'),
+      headers: _headers(token: token),
+      body: jsonEncode(data),
+    );
+    final result = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) return result;
+    throw result['message'] ?? 'Update failed';
   }
 
-  /// Reply to a doubt
-  Future<Map<String, dynamic>> replyToDoubt({
+  Future<Map<String, dynamic>> downloadVideo({
     required String token,
-    required String doubtId,
-    required String reply,
+    required int videoId,
+  }) =>
+      _post('/videos/$videoId/download', {}, token: token);
+
+  Future<Map<String, dynamic>> upvoteVideo({
+    required String token,
+    required int videoId,
+  }) =>
+      _post('/videos/$videoId/upvote', {}, token: token);
+
+  Future<Map<String, dynamic>> getExpiringVideos({required String token}) =>
+      _get('/videos/expiring/soon', token: token);
+
+  // ── TIMESTAMPS / DOUBTS ──────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getTimestamps({
+    required String token,
+    required int videoId,
+    String sortBy = 'newest',
+  }) =>
+      _get('/timestamps/video/$videoId/timestamps?sortBy=$sortBy', token: token);
+
+  Future<Map<String, dynamic>> addTimestampDoubt({
+    required String token,
+    required int videoId,
+    required String timestampValue,
+    required String questionText,
+  }) =>
+      _post('/timestamps/video/$videoId/timestamps', {
+        'timestamp_value': timestampValue,
+        'question_text': questionText,
+      }, token: token);
+
+  Future<Map<String, dynamic>> resolveDoubt({
+    required String token,
+    required int timestampId,
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/doubts/$doubtId/reply'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'reply': reply}),
+    final response = await http.patch(
+      Uri.parse('$baseUrl/timestamps/$timestampId/resolve'),
+      headers: _headers(token: token),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) return data;
+    throw data['message'] ?? 'Failed to resolve';
+  }
+
+  Future<Map<String, dynamic>> addComment({
+    required String token,
+    required int timestampId,
+    required String commentText,
+    bool isAnonymous = false,
+  }) =>
+      _post('/timestamps/$timestampId/comments', {
+        'comment_text': commentText,
+        'is_anonymous': isAnonymous,
+      }, token: token);
+
+  Future<Map<String, dynamic>> getTimestampFAQ({
+    required String token,
+    required int videoId,
+  }) =>
+      _get('/timestamps/video/$videoId/faq', token: token);
+
+  // ── NOTES ────────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getVideoNotes({
+    required String token,
+    required int videoId,
+  }) =>
+      _get('/notes/video/$videoId/notes', token: token);
+
+  Future<Map<String, dynamic>> uploadNote({
+    required String token,
+    required int videoId,
+    required String noteTitle,
+    required String fileUrl,
+    String fileType = 'pdf',
+  }) =>
+      _post('/notes/video/$videoId/notes', {
+        'note_title': noteTitle,
+        'file_url': fileUrl,
+        'file_type': fileType,
+      }, token: token);
+
+  // ── COMMUNITIES ───────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getCommunities({
+    required String token,
+    String? search,
+    String? category,
+  }) =>
+      _get(
+        '/communities'
+        '${search != null ? '?search=${Uri.encodeComponent(search)}' : ''}'
+        '${category != null ? (search != null ? '&' : '?') + 'category=$category' : ''}',
+        token: token,
       );
 
-      if (response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        throw 'Failed to reply to doubt: ${response.body}';
-      }
-    } catch (e) {
-      throw 'Network error: $e';
-    }
+  Future<Map<String, dynamic>> getCommunity({
+    required String token,
+    required int communityId,
+  }) =>
+      _get('/communities/$communityId', token: token);
+
+  Future<Map<String, dynamic>> createCommunity({
+    required String token,
+    required String name,
+    String? description,
+    String? category,
+    bool isPrivate = false,
+  }) =>
+      _post('/communities', {
+        'name': name,
+        if (description != null) 'description': description,
+        if (category != null) 'category': category,
+        'is_private': isPrivate,
+      }, token: token);
+
+  Future<Map<String, dynamic>> joinCommunity({
+    required String token,
+    required int communityId,
+  }) =>
+      _post('/communities/$communityId/join', {}, token: token);
+
+  Future<Map<String, dynamic>> leaveCommunity({
+    required String token,
+    required int communityId,
+  }) =>
+      _post('/communities/$communityId/leave', {}, token: token);
+
+  Future<Map<String, dynamic>> getCommunityPosts({
+    required String token,
+    required int communityId,
+  }) =>
+      _get('/communities/$communityId/posts', token: token);
+
+  Future<Map<String, dynamic>> createPost({
+    required String token,
+    required int communityId,
+    required String content,
+  }) =>
+      _post('/communities/$communityId/posts', {'content': content},
+          token: token);
+
+  Future<Map<String, dynamic>> likePost({
+    required String token,
+    required int communityId,
+    required int postId,
+  }) =>
+      _post('/communities/$communityId/posts/$postId/like', {}, token: token);
+
+  // ── ANONYMOUS FEEDBACK ────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> sendFeedback({
+    required String token,
+    required int teacherId,
+    required String message,
+    String category = 'suggestion',
+  }) =>
+      _post('/feedback', {
+        'teacher_id': teacherId,
+        'message': message,
+        'category': category,
+      }, token: token);
+
+  Future<Map<String, dynamic>> getReceivedFeedback({required String token}) =>
+      _get('/feedback/received', token: token);
+
+  Future<Map<String, dynamic>> getAllFeedback({required String token}) =>
+      _get('/feedback/all', token: token);
+
+  Future<Map<String, dynamic>> respondToFeedback({
+    required String token,
+    required int feedbackId,
+    required String response,
+  }) =>
+      _put('/feedback/$feedbackId/response', {'response': response},
+          token: token);
+
+  Future<Map<String, dynamic>> getFeedbackAnalytics({required String token}) =>
+      _get('/feedback/analytics', token: token);
+
+  // ── BOOKMARKS ─────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getBookmarks({required String token}) =>
+      _get('/bookmarks', token: token);
+
+  Future<Map<String, dynamic>> addBookmark({
+    required String token,
+    required int videoId,
+  }) =>
+      _post('/bookmarks/$videoId', {}, token: token);
+
+  Future<Map<String, dynamic>> removeBookmark({
+    required String token,
+    required int videoId,
+  }) =>
+      _delete('/bookmarks/$videoId', token: token);
+
+  // ── ANALYTICS ────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getTeacherAnalytics({required String token}) =>
+      _get('/analytics/teacher', token: token);
+
+  // ── ADMIN ────────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> adminGetUsers({
+    required String token,
+    String? role,
+  }) =>
+      _get('/admin/users${role != null ? '?role=$role' : ''}', token: token);
+
+  Future<Map<String, dynamic>> adminUpdateUser({
+    required String token,
+    required int userId,
+    required bool isActive,
+    String? reason,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/admin/users/$userId'),
+      headers: _headers(token: token),
+      body: jsonEncode({'is_active': isActive, if (reason != null) 'reason': reason}),
+    );
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 200 && response.statusCode < 300) return data;
+    throw data['message'] ?? 'Update failed';
   }
+
+  Future<Map<String, dynamic>> adminGetAllFeedback({required String token}) =>
+      _get('/feedback/all', token: token);
 }

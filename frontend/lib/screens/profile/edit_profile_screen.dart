@@ -95,11 +95,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         semester: _semesterController.text,
         profileImage: authProvider.user!.profileImage,
         bio: _bioController.text,
-        enrolledCourses: authProvider.user!.enrolledCourses,
-        joinedCommunities: authProvider.user!.joinedCommunities,
-        coursesCount: authProvider.user!.coursesCount,
-        videosCount: authProvider.user!.videosCount,
-        rating: authProvider.user!.rating,
         createdAt: authProvider.user!.createdAt,
         isVerified: authProvider.user!.isVerified,
       );

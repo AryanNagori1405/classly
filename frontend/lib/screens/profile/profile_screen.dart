@@ -657,8 +657,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             Expanded(
               child: _buildStatCard(
-                label: 'Courses',
-                value: user.enrolledCourses.length.toString(),
+                label: 'Department',
+                value: user.department.isNotEmpty ? user.department : '-',
                 icon: Icons.library_books_rounded,
                 color: const Color(0xFF06B6D4),
               ),
@@ -666,8 +666,8 @@ class _ProfileScreenState extends State<ProfileScreen>
             const SizedBox(width: 12),
             Expanded(
               child: _buildStatCard(
-                label: 'Communities',
-                value: user.joinedCommunities.length.toString(),
+                label: 'Semester',
+                value: user.semester.isNotEmpty ? user.semester : '-',
                 icon: Icons.groups_rounded,
                 color: const Color(0xFF8B5CF6),
               ),
@@ -784,8 +784,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             Expanded(
               child: _buildAchievementBadge(
-                label: 'Courses',
-                value: user.coursesCount.toString(),
+                label: 'Role',
+                value: user.role.toUpperCase(),
                 icon: Icons.book_rounded,
                 color: const Color(0xFF10B981),
               ),
@@ -793,17 +793,17 @@ class _ProfileScreenState extends State<ProfileScreen>
             const SizedBox(width: 12),
             Expanded(
               child: _buildAchievementBadge(
-                label: 'Videos',
-                value: user.videosCount.toString(),
-                icon: Icons.video_library_rounded,
+                label: 'Verified',
+                value: user.isVerified ? 'Yes' : 'No',
+                icon: Icons.verified_rounded,
                 color: const Color(0xFFEF4444),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _buildAchievementBadge(
-                label: 'Rating',
-                value: '${user.rating.toStringAsFixed(1)}⭐',
+                label: 'Member',
+                value: '${DateTime.now().difference(user.createdAt).inDays}d',
                 icon: Icons.star_rounded,
                 color: const Color(0xFFFCD34D),
               ),
