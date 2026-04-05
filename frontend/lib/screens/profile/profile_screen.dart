@@ -1,4 +1,5 @@
 import 'package:classly_frontend/models/user_model.dart';
+import 'package:classly_frontend/screens/profile/edit_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
@@ -34,7 +35,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     _headerSlideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _headerController, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _headerController, curve: Curves.easeOutCubic));
     _headerFadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _headerController, curve: Curves.easeInCubic),
     );
@@ -194,18 +196,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 subtitle: 'Update your information',
                                 color: AppColors.primaryColor,
                                 onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: const Text(
-                                          'Edit Profile - Coming soon'),
-                                      backgroundColor:
-                                          AppColors.accentColor,
-                                      behavior: SnackBarBehavior.floating,
-                                      margin: const EdgeInsets.all(16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                      ),
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const EditProfileScreen(),
                                     ),
                                   );
                                 },
@@ -222,13 +217,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     SnackBar(
                                       content:
                                           const Text('Settings - Coming soon'),
-                                      backgroundColor:
-                                          AppColors.accentColor,
+                                      backgroundColor: AppColors.accentColor,
                                       behavior: SnackBarBehavior.floating,
                                       margin: const EdgeInsets.all(16),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                   );
@@ -246,13 +239,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     SnackBar(
                                       content: const Text(
                                           'Help & Support - Coming soon'),
-                                      backgroundColor:
-                                          AppColors.accentColor,
+                                      backgroundColor: AppColors.accentColor,
                                       behavior: SnackBarBehavior.floating,
                                       margin: const EdgeInsets.all(16),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                   );
@@ -1082,7 +1073,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     width: 1.5,
                   ),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.description_rounded,
                   color: AppColors.primaryColor,
                   size: 18,
@@ -1230,9 +1221,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
             border: Border.all(
-              color: isDestructive
-                  ? color.withOpacity(0.2)
-                  : Colors.grey.shade100,
+              color:
+                  isDestructive ? color.withOpacity(0.2) : Colors.grey.shade100,
               width: 1.5,
             ),
             color: Colors.white,

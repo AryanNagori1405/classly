@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
+import '../services/storage_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService;
@@ -10,10 +11,10 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _isFirstTimeLogin = false;
-  bool _useLocalStorage = true; // Toggle between local and API
+  bool _useLocalStorage = true;
 
   AuthProvider(this._apiService) {
-    _loadUserFromPrefs();
+    _loadUserFromStorage();
   }
 
   // Getters
@@ -24,17 +25,27 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
   bool get isFirstTimeLogin => _isFirstTimeLogin;
 
-  /// Load user from SharedPreferences on app startup
-  Future<void> _loadUserFromPrefs() async {
+  /// Load user from local storage on app startup
+  Future<void> _loadUserFromStorage() async {
     try {
-      // In a real app, load from SharedPreferences
-      // For now, start with no user (forces login)
-      _user = null;
-      _token = null;
+      final isAuth = await StorageService.isAuthenticated();
+      if (isAuth) {
+        final user = await StorageService.getUser();
+        final token = await StorageService.getToken();
+        
+        if (user != null && token != null) {
+          _user = user;
+          _token = token;
+          debugPrint('User loaded from storage: ${user.name}');
+        } else {
+          await StorageService.clearAll();
+        }
+      }
       notifyListeners();
     } catch (e) {
       _error = 'Failed to load user data';
-      debugPrint('Error loading user: $e');
+      debugPrint('Error loading user from storage: $e');
+      notifyListeners();
     }
   }
 
@@ -75,7 +86,6 @@ class AuthProvider extends ChangeNotifier {
           password: password,
         );
 
-        // Create user from response
         _user = User(
           uid: response['user']['uid'] ?? 'STU001',
           regId: response['user']['regId'] ?? 'REG001',
@@ -90,6 +100,13 @@ class AuthProvider extends ChangeNotifier {
         );
 
         _token = response['token'];
+      }
+
+      // Save to local storage
+      if (_user != null && _token != null) {
+        await StorageService.saveUser(_user!);
+        await StorageService.saveToken(_token!);
+        await StorageService.setAuthenticated(true);
       }
 
       _isFirstTimeLogin = false;
@@ -147,12 +164,12 @@ class AuthProvider extends ChangeNotifier {
           role: role,
         );
 
-        // Create user from response
         _user = User(
           uid: response['user']['uid'] ?? 'STU001',
           regId: response['user']['regId'] ?? registrationNumber,
           name: response['user']['name'] ?? 'Student',
-          email: response['user']['email'] ?? '$registrationNumber@college.edu',
+          email: response['user']['email'] ??
+              '$registrationNumber@college.edu',
           role: response['user']['role'] ?? role,
           department: response['user']['department'] ?? 'Unknown',
           semester: response['user']['semester'] ?? '1',
@@ -174,6 +191,13 @@ class AuthProvider extends ChangeNotifier {
         _token = response['token'];
       }
 
+      // Save to local storage
+      if (_user != null && _token != null) {
+        await StorageService.saveUser(_user!);
+        await StorageService.saveToken(_token!);
+        await StorageService.setAuthenticated(true);
+      }
+
       _isFirstTimeLogin = false;
       _isLoading = false;
       notifyListeners();
@@ -187,7 +211,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Login using UID and Registration ID (kept for backward compatibility)
+  /// Login using UID and Registration ID
   Future<bool> loginWithUID({
     required String uid,
     required String regId,
@@ -199,7 +223,6 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
 
       if (_useLocalStorage) {
-        // Local storage mode - simulate UID login
         await Future.delayed(const Duration(seconds: 2));
 
         _user = User(
@@ -222,14 +245,12 @@ class AuthProvider extends ChangeNotifier {
         );
         _token = 'local_token_$uid';
       } else {
-        // API mode
         final response = await _apiService.loginWithUID(
           uid: uid,
           regId: regId,
           role: role,
         );
 
-        // Create user from response
         _user = User(
           uid: response['user']['uid'] ?? uid,
           regId: response['user']['regId'] ?? regId,
@@ -254,6 +275,13 @@ class AuthProvider extends ChangeNotifier {
         );
 
         _token = response['token'];
+      }
+
+      // Save to local storage
+      if (_user != null && _token != null) {
+        await StorageService.saveUser(_user!);
+        await StorageService.saveToken(_token!);
+        await StorageService.setAuthenticated(true);
       }
 
       _isFirstTimeLogin = false;
@@ -285,14 +313,12 @@ class AuthProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // If uid and regId are not provided, generate them
       final finalUid =
           uid.isEmpty ? 'STU${DateTime.now().millisecondsSinceEpoch}' : uid;
       final finalRegId =
           regId.isEmpty ? 'REG${DateTime.now().millisecondsSinceEpoch}' : regId;
 
       if (_useLocalStorage) {
-        // Local storage mode - simulate signup
         await Future.delayed(const Duration(seconds: 2));
 
         _user = User(
@@ -315,7 +341,6 @@ class AuthProvider extends ChangeNotifier {
         );
         _token = 'local_token_$finalUid';
       } else {
-        // API mode
         final response = await _apiService.register(
           name: name,
           email: email,
@@ -327,7 +352,6 @@ class AuthProvider extends ChangeNotifier {
           semester: semester,
         );
 
-        // Create user from response
         _user = User(
           uid: response['user']['uid'] ?? finalUid,
           regId: response['user']['regId'] ?? finalRegId,
@@ -349,6 +373,13 @@ class AuthProvider extends ChangeNotifier {
         _token = response['token'];
       }
 
+      // Save to local storage
+      if (_user != null && _token != null) {
+        await StorageService.saveUser(_user!);
+        await StorageService.saveToken(_token!);
+        await StorageService.setAuthenticated(true);
+      }
+
       _isFirstTimeLogin = true;
       _isLoading = false;
       notifyListeners();
@@ -368,7 +399,10 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      // Clear local data
+      // Clear local storage
+      await StorageService.clearAll();
+
+      // Clear in-memory data
       _user = null;
       _token = null;
       _error = null;
