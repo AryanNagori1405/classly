@@ -38,6 +38,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Login with email and password
   Future<bool> login({
     required String email,
     required String password,
@@ -104,7 +105,89 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Login using UID and Registration ID
+  /// Login using Registration Number and Password
+  Future<bool> loginWithCredentials({
+    required String registrationNumber,
+    required String password,
+    required String role,
+  }) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      if (_useLocalStorage) {
+        // Local storage mode - simulate login
+        await Future.delayed(const Duration(seconds: 2));
+
+        _user = User(
+          uid: 'STU${DateTime.now().millisecondsSinceEpoch}',
+          regId: registrationNumber,
+          name: 'Student User',
+          email: '$registrationNumber@college.edu',
+          role: role,
+          department: 'Computer Science',
+          semester: '4',
+          profileImage: 'https://via.placeholder.com/100',
+          bio: 'Welcome to Classly!',
+          enrolledCourses: const [],
+          joinedCommunities: const [],
+          coursesCount: 0,
+          videosCount: 0,
+          rating: 0.0,
+          createdAt: DateTime.now(),
+          isVerified: true,
+        );
+        _token = 'local_token_$registrationNumber';
+      } else {
+        // API mode
+        final response = await _apiService.loginWithCredentials(
+          registrationNumber: registrationNumber,
+          password: password,
+          role: role,
+        );
+
+        // Create user from response
+        _user = User(
+          uid: response['user']['uid'] ?? 'STU001',
+          regId: response['user']['regId'] ?? registrationNumber,
+          name: response['user']['name'] ?? 'Student',
+          email: response['user']['email'] ?? '$registrationNumber@college.edu',
+          role: response['user']['role'] ?? role,
+          department: response['user']['department'] ?? 'Unknown',
+          semester: response['user']['semester'] ?? '1',
+          profileImage: response['user']['profileImage'] ??
+              'https://via.placeholder.com/100',
+          bio: response['user']['bio'] ?? '',
+          enrolledCourses:
+              List<String>.from(response['user']['enrolledCourses'] ?? []),
+          joinedCommunities:
+              List<String>.from(response['user']['joinedCommunities'] ?? []),
+          coursesCount: response['user']['coursesCount'] ?? 0,
+          videosCount: response['user']['videosCount'] ?? 0,
+          rating: (response['user']['rating'] ?? 0).toDouble(),
+          createdAt: DateTime.parse(response['user']['createdAt'] ??
+              DateTime.now().toIso8601String()),
+          isVerified: response['user']['isVerified'] ?? false,
+        );
+
+        _token = response['token'];
+      }
+
+      _isFirstTimeLogin = false;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      debugPrint('Login with credentials error: $e');
+      return false;
+    }
+  }
+
+  /// Login using UID and Registration ID (kept for backward compatibility)
   Future<bool> loginWithUID({
     required String uid,
     required String regId,
@@ -131,6 +214,9 @@ class AuthProvider extends ChangeNotifier {
           bio: 'Welcome to Classly!',
           enrolledCourses: const [],
           joinedCommunities: const [],
+          coursesCount: 0,
+          videosCount: 0,
+          rating: 0.0,
           createdAt: DateTime.now(),
           isVerified: true,
         );
@@ -159,6 +245,9 @@ class AuthProvider extends ChangeNotifier {
               List<String>.from(response['user']['enrolledCourses'] ?? []),
           joinedCommunities:
               List<String>.from(response['user']['joinedCommunities'] ?? []),
+          coursesCount: response['user']['coursesCount'] ?? 0,
+          videosCount: response['user']['videosCount'] ?? 0,
+          rating: (response['user']['rating'] ?? 0).toDouble(),
           createdAt: DateTime.parse(response['user']['createdAt'] ??
               DateTime.now().toIso8601String()),
           isVerified: response['user']['isVerified'] ?? false,
@@ -218,6 +307,9 @@ class AuthProvider extends ChangeNotifier {
           bio: '',
           enrolledCourses: const [],
           joinedCommunities: const [],
+          coursesCount: 0,
+          videosCount: 0,
+          rating: 0.0,
           createdAt: DateTime.now(),
           isVerified: false,
         );
@@ -247,6 +339,9 @@ class AuthProvider extends ChangeNotifier {
           profileImage: response['user']['profileImage'] ??
               'https://via.placeholder.com/100',
           bio: response['user']['bio'] ?? '',
+          coursesCount: response['user']['coursesCount'] ?? 0,
+          videosCount: response['user']['videosCount'] ?? 0,
+          rating: (response['user']['rating'] ?? 0).toDouble(),
           createdAt: DateTime.now(),
           isVerified: response['user']['isVerified'] ?? false,
         );
@@ -267,6 +362,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Logout and clear user data
   Future<void> logout() async {
     try {
       _isLoading = true;
@@ -286,6 +382,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Clear error message
   void clearError() {
     _error = null;
     notifyListeners();

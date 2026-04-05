@@ -22,8 +22,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _uidController = TextEditingController();
-  final _regIdController = TextEditingController();
+  final _regNumberController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _showPassword = false;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -83,8 +84,8 @@ class _LoginScreenState extends State<LoginScreen>
     _slideController.dispose();
     _scaleController.dispose();
     _floatController.dispose();
-    _uidController.dispose();
-    _regIdController.dispose();
+    _regNumberController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -92,9 +93,9 @@ class _LoginScreenState extends State<LoginScreen>
     if (_formKey.currentState!.validate()) {
       final authProvider = context.read<AuthProvider>();
 
-      final success = await authProvider.loginWithUID(
-        uid: _uidController.text.trim(),
-        regId: _regIdController.text.trim(),
+      final success = await authProvider.loginWithCredentials(
+        registrationNumber: _regNumberController.text.trim(),
+        password: _passwordController.text.trim(),
         role: widget.selectedRole,
       );
 
@@ -264,7 +265,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                           // Subtitle
                           Text(
-                            'Classroom Lecture Sharing',
+                            'Welcome Back',
                             style: AppTextStyles.bodyMedium.copyWith(
                               fontSize: 15,
                               color: Colors.grey.shade600,
@@ -303,13 +304,14 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                  color: AppColors.primaryColor.withOpacity(0.2),
+                                  color:
+                                      AppColors.primaryColor.withOpacity(0.2),
                                   width: 1.5,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppColors.primaryColor
-                                        .withOpacity(0.1),
+                                    color:
+                                        AppColors.primaryColor.withOpacity(0.1),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
                                   ),
@@ -341,17 +343,17 @@ class _LoginScreenState extends State<LoginScreen>
 
                           SizedBox(height: size.height * 0.08),
 
-                          // UID Field
+                          // Registration Number Field
                           _buildAnimatedTextField(
-                            controller: _uidController,
-                            hintText: 'Enter your UID',
-                            icon: Icons.badge_rounded,
+                            controller: _regNumberController,
+                            hintText: 'Enter your Registration Number',
+                            icon: Icons.assignment_rounded,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'UID is required';
+                                return 'Registration Number is required';
                               }
                               if (value.length < 3) {
-                                return 'Invalid UID format';
+                                return 'Invalid Registration Number format';
                               }
                               return null;
                             },
@@ -360,21 +362,69 @@ class _LoginScreenState extends State<LoginScreen>
 
                           const SizedBox(height: 20),
 
-                          // Registration ID Field
+                          // Password Field
                           _buildAnimatedTextField(
-                            controller: _regIdController,
-                            hintText: 'Enter your Registration ID',
-                            icon: Icons.assignment_rounded,
+                            controller: _passwordController,
+                            hintText: 'Enter your password',
+                            icon: Icons.lock_rounded,
+                            isPassword: true,
+                            showPassword: _showPassword,
+                            onPasswordToggle: () {
+                              setState(() => _showPassword = !_showPassword);
+                            },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Registration ID is required';
+                                return 'Password is required';
                               }
-                              if (value.length < 3) {
-                                return 'Invalid Registration ID format';
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
                               }
                               return null;
                             },
                             delay: 400,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Forgot Password Link
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0, end: 1),
+                              duration:
+                                  const Duration(milliseconds: 1000 + 500),
+                              curve: Curves.easeOut,
+                              builder: (context, value, child) {
+                                return Opacity(
+                                  opacity: value,
+                                  child: child,
+                                );
+                              },
+                              child: GestureDetector(
+                                onTap: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text(
+                                          'Password reset - Coming soon'),
+                                      backgroundColor: AppColors.accentColor,
+                                      behavior: SnackBarBehavior.floating,
+                                      margin: const EdgeInsets.all(16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  'Forgot Password?',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.primaryColor,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
 
                           SizedBox(height: size.height * 0.06),
@@ -385,9 +435,10 @@ class _LoginScreenState extends State<LoginScreen>
                               return _buildAnimatedButton(
                                 label: authProvider.isLoading
                                     ? 'Verifying...'
-                                    : 'Verify & Login',
-                                onPressed:
-                                    authProvider.isLoading ? () {} : _handleLogin,
+                                    : 'Login',
+                                onPressed: authProvider.isLoading
+                                    ? () {}
+                                    : _handleLogin,
                                 isLoading: authProvider.isLoading,
                                 delay: 600,
                               );
@@ -431,8 +482,8 @@ class _LoginScreenState extends State<LoginScreen>
                               );
                             },
                             child: Container(
-                              padding:
-                                  const EdgeInsets.all(AppConstants.paddingMedium),
+                              padding: const EdgeInsets.all(
+                                  AppConstants.paddingMedium),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
@@ -442,7 +493,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: AppColors.primaryColor.withOpacity(0.2),
+                                  color:
+                                      AppColors.primaryColor.withOpacity(0.2),
                                   width: 1.5,
                                 ),
                                 boxShadow: [
@@ -478,7 +530,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Text(
-                                      'Use your college UID and Registration ID to login securely.',
+                                      'Use your Registration Number and password set during account creation.',
                                       style: AppTextStyles.caption.copyWith(
                                         color: Colors.grey.shade700,
                                         fontWeight: FontWeight.w500,
@@ -510,6 +562,9 @@ class _LoginScreenState extends State<LoginScreen>
     required String hintText,
     required IconData icon,
     String? Function(String?)? validator,
+    bool isPassword = false,
+    bool showPassword = false,
+    VoidCallback? onPasswordToggle,
     int delay = 0,
   }) {
     return TweenAnimationBuilder<double>(
@@ -525,85 +580,133 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: TextFormField(
-          controller: controller,
-          validator: validator,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(
-              color: Colors.grey.shade400,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
-            prefixIcon: Icon(
-              icon,
-              color: AppColors.primaryColor.withOpacity(0.6),
-              size: 22,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: Colors.grey.shade200,
-                width: 1.5,
+      child: StatefulBuilder(
+        builder: (context, setState) {
+          bool isFocused = false;
+
+          return Focus(
+            onFocusChange: (hasFocus) {
+              setState(() => isFocused = hasFocus);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  // Glowing shadow when focused
+                  BoxShadow(
+                    color: isFocused
+                        ? AppColors.primaryColor.withOpacity(0.5)
+                        : Colors.black.withOpacity(0.08),
+                    blurRadius: isFocused ? 24 : 16,
+                    offset: const Offset(0, 6),
+                    spreadRadius: isFocused ? 2 : 0,
+                  ),
+                  // Extra glow layer when focused
+                  if (isFocused)
+                    BoxShadow(
+                      color: AppColors.primaryColor.withOpacity(0.25),
+                      blurRadius: 40,
+                      offset: const Offset(0, 12),
+                      spreadRadius: 4,
+                    ),
+                ],
+              ),
+              child: TextFormField(
+                controller: controller,
+                validator: validator,
+                obscureText: isPassword && !showPassword,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  prefixIcon: AnimatedBuilder(
+                    animation: controller,
+                    builder: (context, _) {
+                      return Icon(
+                        icon,
+                        color: isFocused
+                            ? AppColors.primaryColor
+                            : AppColors.primaryColor.withOpacity(0.6),
+                        size: 22,
+                      );
+                    },
+                  ),
+                  suffixIcon: isPassword
+                      ? GestureDetector(
+                          onTap: onPasswordToggle,
+                          child: Icon(
+                            showPassword
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
+                            color: isFocused
+                                ? AppColors.primaryColor
+                                : AppColors.primaryColor.withOpacity(0.6),
+                            size: 22,
+                          ),
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: isFocused
+                      ? AppColors.primaryColor.withOpacity(0.05)
+                      : Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade200,
+                      width: 1.5,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: Colors.grey.shade200,
+                      width: 1.5,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                      color: AppColors.primaryColor,
+                      width: 2.5,
+                    ),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                      color: AppColors.errorColor,
+                      width: 1.5,
+                    ),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                      color: AppColors.errorColor,
+                      width: 2.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
+                  errorStyle: const TextStyle(
+                    color: AppColors.errorColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: Colors.grey.shade200,
-                width: 1.5,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: AppColors.primaryColor,
-                width: 2.5,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: AppColors.errorColor,
-                width: 1.5,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: AppColors.errorColor,
-                width: 2.5,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 18,
-            ),
-            errorStyle: const TextStyle(
-              color: AppColors.errorColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -678,9 +781,8 @@ class _LoginScreenState extends State<LoginScreen>
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: isPrimary
-                              ? Colors.white
-                              : AppColors.primaryColor,
+                          color:
+                              isPrimary ? Colors.white : AppColors.primaryColor,
                           letterSpacing: 0.5,
                         ),
                       ),
