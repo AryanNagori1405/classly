@@ -311,8 +311,11 @@ router.delete('/:communityId/posts/:postId', async (req, res) => {
             [communityId, userId]
         );
 
-        if (postCheck.rows[0].user_id !== userId && isMod.rows.length === 0
-            && req.user.role !== 'admin') {
+        if (
+            postCheck.rows[0].user_id !== userId
+            && isMod.rows.length === 0
+            && req.user.role !== 'admin'
+        ) {
             return res.status(403).json({ message: 'Not authorized to delete this post' });
         }
 

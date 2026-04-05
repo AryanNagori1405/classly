@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const pool = require('./config/database');
 const authRoutes = require('./routes/auth');
 const courseRoutes = require('./routes/courses');
@@ -43,6 +44,28 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
 }));
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+// Strict limiter for auth endpoints (OTP / login)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many requests. Please try again later.' },
+});
+
+// General API limiter
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Rate limit exceeded. Please slow down.' },
+});
+
+app.use('/api/auth', authLimiter);
+app.use('/api/', apiLimiter);
 
 // ── Body parsers ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
