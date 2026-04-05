@@ -32,7 +32,7 @@ class AuthProvider extends ChangeNotifier {
       if (isAuth) {
         final user = await StorageService.getUser();
         final token = await StorageService.getToken();
-        
+
         if (user != null && token != null) {
           _user = user;
           _token = token;
@@ -168,8 +168,7 @@ class AuthProvider extends ChangeNotifier {
           uid: response['user']['uid'] ?? 'STU001',
           regId: response['user']['regId'] ?? registrationNumber,
           name: response['user']['name'] ?? 'Student',
-          email: response['user']['email'] ??
-              '$registrationNumber@college.edu',
+          email: response['user']['email'] ?? '$registrationNumber@college.edu',
           role: response['user']['role'] ?? role,
           department: response['user']['department'] ?? 'Unknown',
           semester: response['user']['semester'] ?? '1',
@@ -226,10 +225,10 @@ class AuthProvider extends ChangeNotifier {
         await Future.delayed(const Duration(seconds: 2));
 
         _user = User(
-          uid: uid,
+          uid: 'STU${DateTime.now().millisecondsSinceEpoch}',
           regId: regId,
-          name: 'User $uid',
-          email: '$uid@college.edu',
+          name: 'Student User',
+          email: '',
           role: role,
           department: 'Computer Science',
           semester: '4',
@@ -426,5 +425,17 @@ class AuthProvider extends ChangeNotifier {
   void setUseLocalStorage(bool value) {
     _useLocalStorage = value;
     notifyListeners();
+  }
+
+  /// Update user data
+  Future<void> updateUser(User updatedUser) async {
+    try {
+      _user = updatedUser;
+      await StorageService.saveUser(_user!);
+      notifyListeners();
+      debugPrint('✅ User updated: ${updatedUser.name}');
+    } catch (e) {
+      debugPrint('❌ Error updating user: $e');
+    }
   }
 }

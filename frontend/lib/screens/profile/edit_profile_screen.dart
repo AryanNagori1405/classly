@@ -1,3 +1,4 @@
+import 'package:classly_frontend/services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
@@ -18,7 +19,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   late AnimationController _headerController;
   late Animation<Offset> _headerSlideAnimation;
   late Animation<double> _headerFadeAnimation;
-  
+
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _bioController;
@@ -40,7 +41,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     _headerSlideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _headerController, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _headerController, curve: Curves.easeOutCubic));
     _headerFadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _headerController, curve: Curves.easeInCubic),
     );
@@ -70,7 +72,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     setState(() => _isEditing = !_isEditing);
   }
 
-  void _saveChanges() async {
+    void _saveChanges() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -80,7 +82,32 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     // Simulate API call
     await Future.delayed(const Duration(seconds: 2));
 
-    if (!mounted) return;
+    // Update user data in AuthProvider
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.user != null) {
+      final updatedUser = User(
+        uid: authProvider.user!.uid,
+        regId: authProvider.user!.regId,
+        name: _nameController.text,
+        email: _emailController.text,
+        role: authProvider.user!.role,
+        department: _departmentController.text,
+        semester: _semesterController.text,
+        profileImage: authProvider.user!.profileImage,
+        bio: _bioController.text,
+        enrolledCourses: authProvider.user!.enrolledCourses,
+        joinedCommunities: authProvider.user!.joinedCommunities,
+        coursesCount: authProvider.user!.coursesCount,
+        videosCount: authProvider.user!.videosCount,
+        rating: authProvider.user!.rating,
+        createdAt: authProvider.user!.createdAt,
+        isVerified: authProvider.user!.isVerified,
+      );
+      
+      // Save to storage and update provider
+      await StorageService.saveUser(updatedUser);
+      authProvider.updateUser(updatedUser);
+    }
 
     setState(() {
       _isLoading = false;
@@ -219,7 +246,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                                   label: 'Email Address',
                                   controller: _emailController,
                                   icon: Icons.email_rounded,
-                                  enabled: false, // Email is not editable
+                                  enabled: _isEditing,
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'Email is required';
@@ -268,12 +295,14 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                                   enabled: false, // Semester is not editable
                                 ),
 
-                                const SizedBox(height: AppConstants.paddingXLarge),
+                                const SizedBox(
+                                    height: AppConstants.paddingXLarge),
 
                                 // Buttons
                                 _buildActionButtons(),
 
-                                const SizedBox(height: AppConstants.paddingLarge),
+                                const SizedBox(
+                                    height: AppConstants.paddingLarge),
                               ],
                             ),
                           ),
@@ -309,8 +338,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                         ],
                       ),
                       child: const CircularProgressIndicator(
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primaryColor),
                         strokeWidth: 3,
                       ),
                     ),
@@ -425,7 +454,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                     ),
                   ],
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.person_rounded,
                   size: 55,
                   color: AppColors.primaryColor,
@@ -564,15 +593,12 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               decoration: InputDecoration(
                 prefixIcon: Icon(
                   icon,
-                  color: enabled
-                      ? AppColors.primaryColor
-                      : Colors.grey.shade400,
+                  color:
+                      enabled ? AppColors.primaryColor : Colors.grey.shade400,
                   size: 20,
                 ),
                 filled: true,
-                fillColor: enabled
-                    ? Colors.white
-                    : Colors.grey.shade100,
+                fillColor: enabled ? Colors.white : Colors.grey.shade100,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(
@@ -740,8 +766,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
-                                valueColor:
-                                    const AlwaysStoppedAnimation<Color>(
+                                valueColor: const AlwaysStoppedAnimation<Color>(
                                   Colors.white,
                                 ),
                                 strokeWidth: 2.5,

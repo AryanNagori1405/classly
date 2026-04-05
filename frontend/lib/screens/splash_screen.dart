@@ -9,6 +9,7 @@ import 'welcome_screen.dart';
 import 'role_selection_screen.dart';
 import 'home/student_home.dart';
 import 'home/teacher_home.dart';
+import 'profile/edit_profile_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -83,21 +84,50 @@ class _SplashScreenState extends State<SplashScreen>
     _scaleController.forward();
     _glowController.forward();
 
-    // Navigate after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        _navigateBasedOnUserState();
-      }
-    });
+    // Initialize and navigate
+    _initializeAndNavigate();
   }
 
-  Future<void> _navigateBasedOnUserState() async {
+  Future<void> _initializeAndNavigate() async {
+    // Wait for auth provider to initialize
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
     final authProvider = context.read<AuthProvider>();
+
+    // Wait for the provider to load user from storage
+    debugPrint('🔄 Checking authentication state...');
+
+    // Give it time to load
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    if (!mounted) return;
+
+    debugPrint('👤 User: ${authProvider.user?.name}');
+    debugPrint('🔐 Is authenticated: ${authProvider.isAuthenticated}');
+    debugPrint('📧 Email: ${authProvider.user?.email}');
+
     final isFirstTime = await FirstTimeUserManager.isFirstTimeLaunch();
+    debugPrint('🆕 Is first time: $isFirstTime');
 
     if (mounted) {
       // Check if user is authenticated
       if (authProvider.isAuthenticated && authProvider.user != null) {
+        debugPrint('✅ User is authenticated, navigating to home...');
+
+        // Check if user needs to complete profile (empty email)
+        if (authProvider.user!.email.isEmpty) {
+          debugPrint('📝 User needs to complete profile');
+          Navigator.of(context).pushAndRemoveUntil(
+            SmoothPageTransition(
+              page: const EditProfileScreen(),
+            ),
+            (route) => false,
+          );
+          return;
+        }
+
         // User is logged in - go directly to home
         final userRole = authProvider.user!.role;
 
@@ -111,6 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
         );
       } else if (isFirstTime) {
         // First time EVER - show welcome screen
+        debugPrint('🎉 First time user, showing welcome screen');
         Navigator.of(context).pushAndRemoveUntil(
           SmoothPageTransition(
             page: const WelcomeScreen(),
@@ -119,6 +150,7 @@ class _SplashScreenState extends State<SplashScreen>
         );
       } else {
         // Not authenticated - always go to role selection (which leads to login)
+        debugPrint('🔐 Not authenticated, showing role selection');
         Navigator.of(context).pushAndRemoveUntil(
           SmoothPageTransition(
             page: const RoleSelectionScreen(),
